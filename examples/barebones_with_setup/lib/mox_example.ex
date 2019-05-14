@@ -1,6 +1,6 @@
-defmodule MoxExample do
+defmodule ErsatzExample do
   @example_api Application.get_env(
-                 :mox_example,
+                 :ersatz_example,
                  :example_api,
                  ExampleAPI
                )

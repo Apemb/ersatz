@@ -1,1 +1,1 @@
-Mox.defmock(ExampleAPIMock, for: ExampleAPI)
+Ersatz.defmock(ExampleAPIMock, for: ExampleAPI)

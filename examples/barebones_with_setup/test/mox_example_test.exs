@@ -1,8 +1,8 @@
-defmodule MoxExampleTest do
-  import Mox
+defmodule ErsatzExampleTest do
+  import Ersatz
 
   use ExUnit.Case
-  doctest MoxExample
+  doctest ErsatzExample
 
   setup :verify_on_exit!
 
@@ -12,6 +12,6 @@ defmodule MoxExampleTest do
     ExampleAPIMock
     |> expect(:api_post, fn ^name, [], [] -> {:ok, nil} end)
 
-    assert MoxExample.post_name(name) == {:ok, nil}
+    assert ErsatzExample.post_name(name) == {:ok, nil}
   end
 end

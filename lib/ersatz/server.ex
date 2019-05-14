@@ -1,4 +1,4 @@
-defmodule Mox.Server do
+defmodule Ersatz.Server do
   @moduledoc false
 
   use GenServer

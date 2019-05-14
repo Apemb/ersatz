@@ -1,8 +1,8 @@
-defmodule MoxTest do
+defmodule ErsatzTest do
   use ExUnit.Case, async: true
 
-  import Mox
-  doctest Mox
+  import Ersatz
+  doctest Ersatz
 
   defmodule Calculator do
     @callback add(integer(), integer()) :: integer()
@@ -19,9 +19,9 @@ defmodule MoxTest do
   defmock(SciCalcMock, for: [Calculator, ScientificCalculator])
 
   def in_all_modes(callback) do
-    set_mox_global()
+    set_ersatz_global()
     callback.()
-    set_mox_private()
+    set_ersatz_private()
     callback.()
   end
 
@@ -125,7 +125,7 @@ defmodule MoxTest do
     end
 
     test "is invoked n times by the same process in private mode" do
-      set_mox_private()
+      set_ersatz_private()
 
       CalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
@@ -139,7 +139,7 @@ defmodule MoxTest do
     end
 
     test "is invoked n times by any process in global mode" do
-      set_mox_global()
+      set_ersatz_global()
 
       CalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
@@ -160,7 +160,7 @@ defmodule MoxTest do
 
     @tag :requires_caller_tracking
     test "is invoked n times by any process in private mode on Elixir 1.8" do
-      set_mox_private()
+      set_ersatz_private()
 
       CalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
@@ -181,7 +181,7 @@ defmodule MoxTest do
 
     @tag :requires_caller_tracking
     test "is invoked n times by a sub-process in private mode on Elixir 1.8" do
-      set_mox_private()
+      set_ersatz_private()
 
       CalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
@@ -211,7 +211,7 @@ defmodule MoxTest do
 
       msg = ~r"expected CalcMock.add/2 to be called 0 times but it has been called once"
 
-      assert_raise Mox.UnexpectedCallError, msg, fn ->
+      assert_raise Ersatz.UnexpectedCallError, msg, fn ->
         CalcMock.add(2, 3) == 5
       end
     end
@@ -227,7 +227,7 @@ defmodule MoxTest do
     test "expectations are reclaimed if the global process dies" do
       task =
         Task.async(fn ->
-          set_mox_global()
+          set_ersatz_global()
 
           CalcMock
           |> expect(:add, fn _, _ -> :expected end)
@@ -236,7 +236,7 @@ defmodule MoxTest do
 
       Task.await(task)
 
-      assert_raise Mox.UnexpectedCallError, fn ->
+      assert_raise Ersatz.UnexpectedCallError, fn ->
         CalcMock.add(1, 1)
       end
 
@@ -267,7 +267,7 @@ defmodule MoxTest do
     end
 
     test "raises if there is no expectation" do
-      assert_raise Mox.UnexpectedCallError,
+      assert_raise Ersatz.UnexpectedCallError,
                    ~r"no expectation defined for CalcMock\.add/2.*with args \[2, 3\]",
                    fn ->
                      CalcMock.add(2, 3) == 5
@@ -278,7 +278,7 @@ defmodule MoxTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
       assert CalcMock.add(2, 3) == 5
 
-      assert_raise Mox.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
+      assert_raise Ersatz.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
         CalcMock.add(2, 3) == 5
       end
 
@@ -287,17 +287,17 @@ defmodule MoxTest do
 
       msg = ~r"expected CalcMock.add/2 to be called 2 times"
 
-      assert_raise Mox.UnexpectedCallError, msg, fn ->
+      assert_raise Ersatz.UnexpectedCallError, msg, fn ->
         CalcMock.add(2, 3) == 5
       end
     end
 
     test "raises if you try to add expectations from non global process" do
-      set_mox_global()
+      set_ersatz_global()
 
       Task.async(fn ->
         msg =
-          ~r"Only the process that set Mox to global can set expectations/stubs in global mode"
+          ~r"Only the process that set Ersatz to global can set expectations/stubs in global mode"
 
         assert_raise ArgumentError, msg, fn ->
           CalcMock
@@ -310,30 +310,30 @@ defmodule MoxTest do
 
   describe "verify!/0" do
     test "verifies all mocks for the current process in private mode" do
-      set_mox_private()
+      set_ersatz_private()
 
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
 
       assert CalcMock.add(2, 3) == 5
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
     end
 
     test "verifies all mocks for the current process in global mode" do
-      set_mox_global()
+      set_ersatz_global()
 
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
@@ -346,36 +346,36 @@ defmodule MoxTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
     end
   end
 
   describe "verify!/1" do
     test "verifies all mocks for the current process in private mode" do
-      set_mox_private()
+      set_ersatz_private()
 
       verify!(CalcMock)
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
 
       assert CalcMock.add(2, 3) == 5
       verify!(CalcMock)
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
     end
 
     test "verifies all mocks for current process in global mode" do
-      set_mox_global()
+      set_ersatz_global()
 
       verify!(CalcMock)
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
@@ -388,7 +388,7 @@ defmodule MoxTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Mox.VerificationError, message, &verify!/0
+      assert_raise Ersatz.VerificationError, message, &verify!/0
     end
 
     test "raises if a non-mock is given" do
@@ -406,19 +406,19 @@ defmodule MoxTest do
     setup :verify_on_exit!
 
     test "verifies all mocks even if none is used in private mode" do
-      set_mox_private()
+      set_ersatz_private()
       :ok
     end
 
     test "verifies all mocks for the current process on exit in private mode" do
-      set_mox_private()
+      set_ersatz_private()
 
       expect(CalcMock, :add, fn x, y -> x + y end)
       assert CalcMock.add(2, 3) == 5
     end
 
     test "verifies all mocks for the current process on exit with previous verification in private mode" do
-      set_mox_private()
+      set_ersatz_private()
 
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
@@ -426,12 +426,12 @@ defmodule MoxTest do
     end
 
     test "verifies all mocks even if none is used in global mode" do
-      set_mox_global()
+      set_ersatz_global()
       :ok
     end
 
     test "verifies all mocks for current process on exit in global mode" do
-      set_mox_global()
+      set_ersatz_global()
 
       expect(CalcMock, :add, fn x, y -> x + y end)
 
@@ -444,7 +444,7 @@ defmodule MoxTest do
     end
 
     test "verifies all mocks for the current process on exit with previous verification in global mode" do
-      set_mox_global()
+      set_ersatz_global()
 
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
@@ -586,7 +586,7 @@ defmodule MoxTest do
         assert SciCalcMock.add(1, 2) == 3
         assert SciCalcMock.mult(3, 4) == 12
 
-        assert_raise Mox.UnexpectedCallError, fn ->
+        assert_raise Ersatz.UnexpectedCallError, fn ->
           SciCalcMock.exponent(2, 10)
         end
       end)
@@ -603,7 +603,7 @@ defmodule MoxTest do
   end
 
   describe "allow/3" do
-    setup :set_mox_private
+    setup :set_ersatz_private
     setup :verify_on_exit!
 
     test "allows different processes to share mocks from parent process" do
@@ -611,7 +611,7 @@ defmodule MoxTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise Mox.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+          assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
 
           receive do
             :call_mock ->
@@ -641,7 +641,7 @@ defmodule MoxTest do
       |> stub(:mult, fn _, _ -> :stubbed end)
 
       async_no_callers(fn ->
-        assert_raise Mox.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+        assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
 
         CalcMock
         |> allow(parent_pid, self())
@@ -657,7 +657,7 @@ defmodule MoxTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise(Mox.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
+          assert_raise(Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
 
           receive do
             :call_mock ->
@@ -708,7 +708,7 @@ defmodule MoxTest do
 
       Task.await(task)
 
-      assert_raise Mox.UnexpectedCallError, fn ->
+      assert_raise Ersatz.UnexpectedCallError, fn ->
         CalcMock.add(1, 1)
       end
 
@@ -832,7 +832,7 @@ defmodule MoxTest do
     end
 
     test "is ignored if you allow process while in global mode" do
-      set_mox_global()
+      set_ersatz_global()
       {:ok, child_pid} = Task.start_link(fn -> Process.sleep(:infinity) end)
 
       Task.async(fn ->

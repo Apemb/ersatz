@@ -3,7 +3,7 @@ defmodule MoxExample.MixProject do
 
   def project do
     [
-      app: :mox_example,
+      app: :ersatz_example,
       version: "0.1.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
@@ -28,7 +28,7 @@ defmodule MoxExample.MixProject do
   defp deps do
     [
       {:httpoison, "~> 1.4"},
-      {:mox, "~> 0.4", only: :test}
+      {:ersatz, "~> 0.4", only: :test}
     ]
   end
 end

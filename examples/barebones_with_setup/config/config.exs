@@ -10,11 +10,11 @@ use Mix.Config
 
 # You can configure your application as:
 #
-#     config :mox_example, key: :value
+#     config :ersatz_example, key: :value
 #
 # and access this configuration in your application as:
 #
-#     Application.get_env(:mox_example, :key)
+#     Application.get_env(:ersatz_example, :key)
 #
 # You can also configure a 3rd-party app:
 #
