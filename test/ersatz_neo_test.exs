@@ -124,6 +124,7 @@ defmodule ErsatzNeoTest do
   end
 
   describe "set_mock_implementation/3" do
+
     test "works with multiple behaviours" do
       ErsatzNeo.set_mock_implementation(&SciCalcMock.exponent/2, fn x, y -> x - y end)
       ErsatzNeo.set_mock_implementation(&SciCalcMock.add/2, fn x, y -> x * y end)
@@ -145,6 +146,52 @@ defmodule ErsatzNeoTest do
       assert CalcMock.mult(3, 2) == 6
     end
 
+    test "permanent mode allows repeated invocations" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn x, y -> x + y end, times: :permanent)
+          assert CalcMock.add(1, 2) == 3
+          assert CalcMock.add(3, 4) == 7
+          assert CalcMock.add(2, 4) == 6
+        end
+      )
+    end
+
+    test "permanent mode gives time constraint calls precedence" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 1)
+
+          assert CalcMock.add(1, 1) == :temporary
+        end
+      )
+    end
+
+    test "permanent mode is invoked after temporary mocks are used" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 2)
+
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :permanent
+        end
+      )
+    end
+
+    test "permanent mode mocks overwrite earlier permanent mode mocks" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 25 end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 42 end, times: :permanent)
+
+          assert CalcMock.add(1, 1) == 42
+        end
+      )
+    end
+
     test "is invoked n times by any process in global mode" do
       set_ersatz_global()
 
@@ -153,10 +200,12 @@ defmodule ErsatzNeoTest do
       ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 0 end)
 
       task =
-        Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
-        end)
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 5
+            assert CalcMock.add(3, 2) == 5
+          end
+        )
 
       Task.await(task)
 
@@ -172,10 +221,12 @@ defmodule ErsatzNeoTest do
       ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 0 end)
 
       task =
-        Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
-        end)
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 5
+            assert CalcMock.add(3, 2) == 5
+          end
+        )
 
       Task.await(task)
 
@@ -191,18 +242,22 @@ defmodule ErsatzNeoTest do
       ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 0 end)
 
       task =
-        Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 5
+            assert CalcMock.add(3, 2) == 5
 
-          inner_task =
-            Task.async(fn ->
-              assert CalcMock.add(:whatever, :whatever) == 0
-              assert CalcMock.mult(3, 2) == 6
-            end)
+            inner_task =
+              Task.async(
+                fn ->
+                  assert CalcMock.add(:whatever, :whatever) == 0
+                  assert CalcMock.mult(3, 2) == 6
+                end
+              )
 
-          Task.await(inner_task)
-        end)
+            Task.await(inner_task)
+          end
+        )
 
       Task.await(task)
     end
@@ -217,12 +272,14 @@ defmodule ErsatzNeoTest do
 
     test "expectations are reclaimed if the global process dies" do
       task =
-        Task.async(fn ->
-          set_ersatz_global()
+        Task.async(
+          fn ->
+            set_ersatz_global()
 
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :expected end, times: 1)
-          ErsatzNeo.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :expected end, times: :permanent)
-        end)
+            ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :expected end, times: 1)
+            ErsatzNeo.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :expected end, times: :permanent)
+          end
+        )
 
       Task.await(task)
 
@@ -290,14 +347,16 @@ defmodule ErsatzNeoTest do
     test "raises if you try to add expectations from non global process" do
       set_ersatz_global()
 
-      Task.async(fn ->
-        msg =
-          ~r"Only the process that set Ersatz to global can set expectations/stubs in global mode"
+      Task.async(
+        fn ->
+          msg =
+            ~r"Only the process that set Ersatz to global can set expectations/stubs in global mode"
 
-        assert_raise ArgumentError, msg, fn ->
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :expected end)
+          assert_raise ArgumentError, msg, fn ->
+            ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :expected end)
+          end
         end
-      end)
+      )
       |> Task.await()
     end
   end

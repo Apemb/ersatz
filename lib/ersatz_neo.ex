@@ -346,7 +346,7 @@ defmodule ErsatzNeo do
       :permanent ->
         add_expectation!(mock_module, function_name, arity, mock_function, {0, [], mock_function})
 
-      number_of_usages when is_integer(number_of_usages) ->
+      number_of_usages when is_integer(number_of_usages) and number_of_usages >= 0 ->
         calls = List.duplicate(mock_function, number_of_usages)
         add_expectation!(mock_module, function_name, arity, mock_function, {number_of_usages, calls, nil})
     end
@@ -376,10 +376,10 @@ defmodule ErsatzNeo do
 
         raise ArgumentError, """
         cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                        because the process has been allowed by #{
+                                                                                because the process has been allowed by #{
           inspect(owner_pid)
         }. \
-                                                                        You cannot define expectations/stubs in a process that has been allowed
+                                                                                You cannot define expectations/stubs in a process that has been allowed
         """
 
       {:error, {:not_global_owner, global_pid}} ->
@@ -387,10 +387,10 @@ defmodule ErsatzNeo do
 
         raise ArgumentError, """
         cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                        because Ersatz is in global mode and the global process is #{
+                                                                                because Ersatz is in global mode and the global process is #{
           inspect(global_pid)
         }. \
-                                                                        Only the process that set Ersatz to global can set expectations/stubs in global mode
+                                                                                Only the process that set Ersatz to global can set expectations/stubs in global mode
         """
     end
   end
