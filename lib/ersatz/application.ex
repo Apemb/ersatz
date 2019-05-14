@@ -4,7 +4,7 @@ defmodule Ersatz.Application do
   use Application
 
   def start(_, _) do
-    children = [Ersatz.Server]
+    children = [Ersatz.Server, Ersatz.ServerNeo]
     Supervisor.start_link(children, name: Ersatz.Supervisor, strategy: :one_for_one)
   end
 end
