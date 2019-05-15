@@ -1,7 +1,7 @@
 # Ersatz
 
-TO-DO
-[![Hex.pm](https://img.shields.io/hexpm/v/ersatz.svg?style=flat-square)](https://hex.pm/packages/ersatz) 
+[![version](https://img.shields.io/hexpm/v/ersatz.svg?label=hex&style=flat-square)](https://hex.pm/packages/ersatz)
+![build master](https://img.shields.io/circleci/project/github/Apemb/ersatz/master.svg?label=build%20master&style=flat-square)
 
 Ersatz is a library for defining mocks in Elixir.
 

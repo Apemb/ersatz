@@ -175,10 +175,14 @@ defmodule Old.Ersatz do
   """
 
   defmodule UnexpectedCallError do
+    @moduledoc false
+
     defexception [:message]
   end
 
   defmodule VerificationError do
+    @moduledoc false
+
     defexception [:message]
   end
 
