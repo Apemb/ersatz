@@ -14,8 +14,16 @@ defmodule Ersatz.ServerNeo do
     GenServer.call(__MODULE__, {:add_expectation, owner_pid, key, value}, @timeout)
   end
 
-  def fetch_fun_to_dispatch(caller_pids, key) do
-    GenServer.call(__MODULE__, {:fetch_fun_to_dispatch, caller_pids, key}, @timeout)
+  def fetch_fun_to_dispatch(caller_pids, key, args) do
+    GenServer.call(__MODULE__, {:fetch_fun_to_dispatch, caller_pids, key, args}, @timeout)
+  end
+
+  def fetch_fun_calls(caller_pids, key) do
+    GenServer.call(__MODULE__, {:fetch_fun_calls, caller_pids, key}, @timeout)
+  end
+
+  def clear_mock_calls(caller_pids, key) do
+    GenServer.call(__MODULE__, {:clear_mock_calls, caller_pids, key}, @timeout)
   end
 
   def verify(owner_pid, for) do
@@ -41,7 +49,7 @@ defmodule Ersatz.ServerNeo do
   # Callbacks
 
   def init(:ok) do
-    {:ok, %{expectations: %{}, allowances: %{}, deps: %{}, mode: :private, global_owner_pid: nil}}
+    {:ok, %{expectations: %{}, calls: %{}, allowances: %{}, deps: %{}, mode: :private, global_owner_pid: nil}}
   end
 
   def handle_call(
@@ -55,9 +63,13 @@ defmodule Ersatz.ServerNeo do
       state = maybe_add_and_monitor_pid(state, owner_pid)
 
       state =
-        update_in(state, [:expectations, pid_map(owner_pid)], fn owned_expectations ->
-          Map.update(owned_expectations, key, expectation, &merge_expectation(&1, expectation))
-        end)
+        update_in(
+          state,
+          [:expectations, pid_map(owner_pid)],
+          fn owned_expectations ->
+            Map.update(owned_expectations, key, expectation, &merge_expectation(&1, expectation))
+          end
+        )
 
       {:reply, :ok, state}
     end
@@ -72,27 +84,35 @@ defmodule Ersatz.ServerNeo do
       {:reply, {:error, {:not_global_owner, global_owner_pid}}, state}
     else
       state =
-        update_in(state, [:expectations, pid_map(owner_pid)], fn owned_expectations ->
-          Map.update(owned_expectations, key, expectation, &merge_expectation(&1, expectation))
-        end)
+        update_in(
+          state,
+          [:expectations, pid_map(owner_pid)],
+          fn owned_expectations ->
+            Map.update(owned_expectations, key, expectation, &merge_expectation(&1, expectation))
+          end
+        )
 
       {:reply, :ok, state}
     end
   end
 
   def handle_call(
-        {:fetch_fun_to_dispatch, caller_pids, {mock, _, _} = key},
+        {:fetch_fun_to_dispatch, caller_pids, {mock, _, _} = key, args},
         _from,
         %{mode: :private} = state
       ) do
     owner_pid =
-      Enum.find_value(caller_pids, List.first(caller_pids), fn caller_pid ->
-        cond do
-          state.allowances[caller_pid][mock] -> state.allowances[caller_pid][mock]
-          state.expectations[caller_pid][key] -> caller_pid
-          true -> false
+      Enum.find_value(
+        caller_pids,
+        List.first(caller_pids),
+        fn caller_pid ->
+          cond do
+            state.allowances[caller_pid][mock] -> state.allowances[caller_pid][mock]
+            state.expectations[caller_pid][key] -> caller_pid
+            true -> false
+          end
         end
-      end)
+      )
 
     case state.expectations[owner_pid][key] do
       nil ->
@@ -102,16 +122,30 @@ defmodule Ersatz.ServerNeo do
         {:reply, {:out_of_expectations, total}, state}
 
       {_, [], stub} ->
-        {:reply, {:ok, stub}, state}
+        new_state = update_in(
+          state,
+          [:calls, pid_map(owner_pid)],
+          fn owned_calls ->
+            Map.update(owned_calls, key, [args], &(&1 ++ [args]))
+          end
+        )
+        {:reply, {:ok, stub}, new_state}
 
       {total, [call | calls], stub} ->
         new_state = put_in(state.expectations[owner_pid][key], {total, calls, stub})
+                    |> update_in(
+                         [:calls, pid_map(owner_pid)],
+                         fn owned_calls ->
+                           Map.update(owned_calls, key, [args], &(&1 ++ [args]))
+                         end
+                       )
+
         {:reply, {:ok, call}, new_state}
     end
   end
 
   def handle_call(
-        {:fetch_fun_to_dispatch, _caller_pids, {_mock, _, _} = key},
+        {:fetch_fun_to_dispatch, _caller_pids, {_mock, _, _} = key, args},
         _from,
         %{mode: :global} = state
       ) do
@@ -123,12 +157,95 @@ defmodule Ersatz.ServerNeo do
         {:reply, {:out_of_expectations, total}, state}
 
       {_, [], stub} ->
-        {:reply, {:ok, stub}, state}
+        new_state = update_in(
+          state,
+          [:calls, pid_map(state.global_owner_pid)],
+          fn global_calls ->
+            Map.update(global_calls, key, [args], &(&1 ++ [args]))
+          end
+        )
+        {:reply, {:ok, stub}, new_state}
 
       {total, [call | calls], stub} ->
         new_state = put_in(state.expectations[state.global_owner_pid][key], {total, calls, stub})
+                    |> update_in(
+                         [:calls, pid_map(state.global_owner_pid)],
+                         fn global_calls ->
+                           Map.update(global_calls, key, [args], &(&1 ++ [args]))
+                         end
+                       )
         {:reply, {:ok, call}, new_state}
     end
+  end
+
+  def handle_call(
+        {:fetch_fun_calls, caller_pids, {mock, _, _} = key},
+        _from,
+        %{mode: :private} = state
+      ) do
+    owner_pid =
+      Enum.find_value(
+        caller_pids,
+        List.first(caller_pids),
+        fn caller_pid ->
+          cond do
+            state.allowances[caller_pid][mock] -> state.allowances[caller_pid][mock]
+            state.expectations[caller_pid][key] -> caller_pid
+            true -> false
+          end
+        end
+      )
+
+    case Kernel.get_in(state, [:calls, pid_map(owner_pid), key]) do
+      nil -> {:reply, {:ok, []}, state}
+      calls when is_list(calls) -> {:reply, {:ok, calls}, state}
+    end
+  end
+
+  def handle_call(
+        {:fetch_fun_calls, _caller_pids, {_mock, _, _} = key},
+        _from,
+        %{mode: :global} = state
+      ) do
+
+    case Kernel.get_in(state, [:calls, pid_map(state.global_owner_pid), key]) do
+      nil -> {:reply, {:ok, []}, state}
+      calls when is_list(calls) -> {:reply, {:ok, calls}, state}
+    end
+  end
+
+  def handle_call(
+        {:clear_mock_calls, caller_pids, {mock, _, _} = key},
+        _from,
+        %{mode: :private} = state
+      ) do
+    owner_pid =
+      Enum.find_value(
+        caller_pids,
+        List.first(caller_pids),
+        fn caller_pid ->
+          cond do
+            state.allowances[caller_pid][mock] -> state.allowances[caller_pid][mock]
+            state.expectations[caller_pid][key] -> caller_pid
+            true -> false
+          end
+        end
+      )
+
+    {_, new_state} = Kernel.pop_in(state, [:calls, pid_map(owner_pid), key])
+
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(
+        {:clear_mock_calls, _caller_pids, {_mock, _, _} = key},
+        _from,
+        %{mode: :global} = state
+      ) do
+
+    {_, new_state} = Kernel.pop_in(state, [:calls, pid_map(state.global_owner_pid), key])
+
+    {:reply, :ok, new_state}
   end
 
   def handle_call({:verify, owner_pid, mock}, _from, state) do
@@ -166,9 +283,14 @@ defmodule Ersatz.ServerNeo do
 
       true ->
         state =
-          maybe_add_and_monitor_pid(state, owner_pid, :DOWN, fn {on, deps} ->
-            {on, [{pid, mock} | deps]}
-          end)
+          maybe_add_and_monitor_pid(
+            state,
+            owner_pid,
+            :DOWN,
+            fn {on, deps} ->
+              {on, [{pid, mock} | deps]}
+            end
+          )
 
         state = put_in(state, [:allowances, pid_map(pid), mock], owner_pid)
         {:reply, :ok, state}
@@ -211,9 +333,15 @@ defmodule Ersatz.ServerNeo do
     {_, state} = pop_in(state.expectations[pid])
     {_, state} = pop_in(state.allowances[pid])
 
-    Enum.reduce(deps, state, fn {pid, mock}, acc ->
-      acc.allowances[pid][mock] |> pop_in() |> elem(1)
-    end)
+    Enum.reduce(
+      deps,
+      state,
+      fn {pid, mock}, acc ->
+        acc.allowances[pid][mock]
+        |> pop_in()
+        |> elem(1)
+      end
+    )
   end
 
   defp pid_map(pid) do

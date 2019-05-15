@@ -332,7 +332,9 @@ defmodule ErsatzNeo do
     Module.create(name, [info | body], Macro.Env.location(__ENV__))
   end
 
-  @doc ""
+  @doc """
+  TODO: write doc for set_mock_implementation/3
+  """
   def set_mock_implementation(function_to_mock, mock_function, options \\ [])
       when is_function(function_to_mock) and is_function(mock_function) do
 
@@ -363,9 +365,7 @@ defmodule ErsatzNeo do
       raise ArgumentError, "replacement function and #{name}/#{arity} do not have same arity"
     end
 
-    unless function_exported?(mock, name, arity) do
-      raise ArgumentError, "unknown function #{name}/#{arity} for mock #{inspect(mock)}"
-    end
+    validate_function!(mock, name, arity)
 
     case Ersatz.ServerNeo.add_expectation(self(), key, value) do
       :ok ->
@@ -376,10 +376,10 @@ defmodule ErsatzNeo do
 
         raise ArgumentError, """
         cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                                because the process has been allowed by #{
+                                                                                                                        because the process has been allowed by #{
           inspect(owner_pid)
         }. \
-                                                                                You cannot define expectations/stubs in a process that has been allowed
+                                                                                                                        You cannot define expectations/stubs in a process that has been allowed
         """
 
       {:error, {:not_global_owner, global_pid}} ->
@@ -387,10 +387,10 @@ defmodule ErsatzNeo do
 
         raise ArgumentError, """
         cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                                because Ersatz is in global mode and the global process is #{
+                                                                                                                        because Ersatz is in global mode and the global process is #{
           inspect(global_pid)
         }. \
-                                                                                Only the process that set Ersatz to global can set expectations/stubs in global mode
+                                                                                                                        Only the process that set Ersatz to global can set expectations/stubs in global mode
         """
     end
   end
@@ -408,11 +408,58 @@ defmodule ErsatzNeo do
     end
   end
 
+  defp validate_function!(mock_module, function_name, arity) do
+    cond do
+      not function_exported?(mock_module, function_name, arity) ->
+        raise ArgumentError, "unknown function #{function_name}/#{arity} for mock #{inspect(mock_module)}"
+
+      true ->
+        :ok
+    end
+  end
+
+  def get_mock_calls(mocked_function) when is_function(mocked_function) do
+    all_callers = [self() | caller_pids()]
+
+    {:module, mock_module} = Function.info(mocked_function, :module)
+    {:name, function_name} = Function.info(mocked_function, :name)
+    {:arity, arity} = Function.info(mocked_function, :arity)
+
+    validate_mock!(mock_module)
+    validate_function!(mock_module, function_name, arity)
+
+    case Ersatz.ServerNeo.fetch_fun_calls(all_callers, {mock_module, function_name, arity}) do
+      {:ok, calls} when is_list(calls) ->
+        calls
+      {:ok, nil} ->
+        raise UnexpectedCallError, "todo error on get mock calls (arg {:ok, nil})"
+      arg ->
+        raise UnexpectedCallError, "todo error on get mock calls (arg #{arg})"
+    end
+  end
+
+  def clear_mock_calls(mocked_function) when is_function(mocked_function) do
+    all_callers = [self() | caller_pids()]
+
+    {:module, mock_module} = Function.info(mocked_function, :module)
+    {:name, function_name} = Function.info(mocked_function, :name)
+    {:arity, arity} = Function.info(mocked_function, :arity)
+
+    validate_mock!(mock_module)
+    validate_function!(mock_module, function_name, arity)
+
+    case Ersatz.ServerNeo.clear_mock_calls(all_callers, {mock_module, function_name, arity}) do
+      :ok -> :ok
+      {:error, reason} ->
+        raise UnexpectedCallError, "todo error on clear mocks call #{reason}"
+    end
+  end
+
   @doc false
   def __dispatch__(mock, name, arity, args) do
     all_callers = [self() | caller_pids()]
 
-    case Ersatz.ServerNeo.fetch_fun_to_dispatch(all_callers, {mock, name, arity}) do
+    case Ersatz.ServerNeo.fetch_fun_to_dispatch(all_callers, {mock, name, arity}, args) do
       :no_expectation ->
         mfa = Exception.format_mfa(mock, name, arity)
 

@@ -6,6 +6,7 @@ defmodule ErsatzNeoTest do
 
   defmodule Calculator do
     @callback add(integer(), integer()) :: integer()
+    @callback minus(integer(), integer()) :: integer()
     @callback mult(integer(), integer()) :: integer()
   end
 
@@ -144,52 +145,6 @@ defmodule ErsatzNeoTest do
       assert CalcMock.add(3, 2) == 5
       assert CalcMock.add(:whatever, :whatever) == 0
       assert CalcMock.mult(3, 2) == 6
-    end
-
-    test "permanent mode allows repeated invocations" do
-      in_all_modes(
-        fn ->
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn x, y -> x + y end, times: :permanent)
-          assert CalcMock.add(1, 2) == 3
-          assert CalcMock.add(3, 4) == 7
-          assert CalcMock.add(2, 4) == 6
-        end
-      )
-    end
-
-    test "permanent mode gives time constraint calls precedence" do
-      in_all_modes(
-        fn ->
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 1)
-
-          assert CalcMock.add(1, 1) == :temporary
-        end
-      )
-    end
-
-    test "permanent mode is invoked after temporary mocks are used" do
-      in_all_modes(
-        fn ->
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 2)
-
-          assert CalcMock.add(1, 1) == :temporary
-          assert CalcMock.add(1, 1) == :temporary
-          assert CalcMock.add(1, 1) == :permanent
-        end
-      )
-    end
-
-    test "permanent mode mocks overwrite earlier permanent mode mocks" do
-      in_all_modes(
-        fn ->
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 25 end, times: :permanent)
-          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 42 end, times: :permanent)
-
-          assert CalcMock.add(1, 1) == 42
-        end
-      )
     end
 
     test "is invoked n times by any process in global mode" do
@@ -358,6 +313,158 @@ defmodule ErsatzNeoTest do
         end
       )
       |> Task.await()
+    end
+
+    test "permanent mode allows repeated invocations" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn x, y -> x + y end, times: :permanent)
+          assert CalcMock.add(1, 2) == 3
+          assert CalcMock.add(3, 4) == 7
+          assert CalcMock.add(2, 4) == 6
+        end
+      )
+    end
+
+    test "permanent mode gives time constraint calls precedence" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 1)
+
+          assert CalcMock.add(1, 1) == :temporary
+        end
+      )
+    end
+
+    test "permanent mode is invoked after temporary mocks are used" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :permanent end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> :temporary end, times: 2)
+
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :permanent
+        end
+      )
+    end
+
+    test "permanent mode mocks overwrite earlier permanent mode mocks" do
+      in_all_modes(
+        fn ->
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 25 end, times: :permanent)
+          ErsatzNeo.set_mock_implementation(&CalcMock.add/2, fn _, _ -> 42 end, times: :permanent)
+
+          assert CalcMock.add(1, 1) == 42
+        end
+      )
+    end
+  end
+
+  describe "get_mock_calls/1" do
+
+    test "gets function calls argument in private mode" do
+      set_ersatz_private()
+      ErsatzNeo.set_mock_implementation(&CalcMock.minus/2, fn _, _ -> :whatever end)
+
+      CalcMock.minus(2, 3)
+      CalcMock.minus(5, 7)
+
+      minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+
+      assert minus_calls == [[2, 3], [5, 7]]
+    end
+
+    test "gets function calls argument in global mode" do
+      set_ersatz_global()
+      ErsatzNeo.set_mock_implementation(&CalcMock.minus/2, fn _, _ -> :whatever end)
+
+      CalcMock.minus(2, 3)
+      CalcMock.minus(5, 7)
+
+      minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+
+      assert minus_calls == [[2, 3], [5, 7]]
+    end
+
+    test "raises if a non-mock is given" do
+      assert_raise ArgumentError, ~r"module Unknown is not available", fn ->
+        ErsatzNeo.get_mock_calls(&Unknown.add/2)
+      end
+
+      assert_raise ArgumentError, ~r"module String is not a mock", fn ->
+        ErsatzNeo.get_mock_calls(&String.add/2)
+      end
+    end
+
+    test "raises if function is not in behaviour" do
+      assert_raise ArgumentError, ~r"unknown function oops/2 for mock CalcMock", fn ->
+        ErsatzNeo.get_mock_calls(&CalcMock.oops/2)
+      end
+
+      assert_raise ArgumentError, ~r"unknown function add/3 for mock CalcMock", fn ->
+        ErsatzNeo.get_mock_calls(&CalcMock.add/3)
+      end
+    end
+  end
+
+  describe "clear_mock_calls/1" do
+
+    test "deletes function calls argument of process in private mode" do
+      set_ersatz_private()
+      ErsatzNeo.set_mock_implementation(&CalcMock.minus/2, fn _, _ -> :whatever end)
+
+      CalcMock.minus(2, 3)
+      CalcMock.minus(5, 7)
+
+      first_minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+      ErsatzNeo.clear_mock_calls(&CalcMock.minus/2)
+
+      CalcMock.minus(1, 2)
+
+      second_minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+
+      assert first_minus_calls == [[2, 3], [5, 7]]
+      assert second_minus_calls == [[1, 2]]
+    end
+
+    test "deletes function calls argument of process in global mode" do
+      set_ersatz_global()
+      ErsatzNeo.set_mock_implementation(&CalcMock.minus/2, fn _, _ -> :whatever end)
+
+      CalcMock.minus(2, 3)
+      CalcMock.minus(5, 7)
+
+      first_minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+      ErsatzNeo.clear_mock_calls(&CalcMock.minus/2)
+
+      CalcMock.minus(1, 2)
+
+      second_minus_calls = ErsatzNeo.get_mock_calls(&CalcMock.minus/2)
+
+      assert first_minus_calls == [[2, 3], [5, 7]]
+      assert second_minus_calls == [[1, 2]]
+    end
+
+    test "raises if a non-mock is given" do
+      assert_raise ArgumentError, ~r"module Unknown is not available", fn ->
+        ErsatzNeo.clear_mock_calls(&Unknown.add/2)
+      end
+
+      assert_raise ArgumentError, ~r"module String is not a mock", fn ->
+        ErsatzNeo.clear_mock_calls(&String.add/2)
+      end
+    end
+
+    test "raises if function is not in behaviour" do
+      assert_raise ArgumentError, ~r"unknown function oops/2 for mock CalcMock", fn ->
+        ErsatzNeo.clear_mock_calls(&CalcMock.oops/2)
+      end
+
+      assert_raise ArgumentError, ~r"unknown function add/3 for mock CalcMock", fn ->
+        ErsatzNeo.clear_mock_calls(&CalcMock.add/3)
+      end
     end
   end
 end
