@@ -1,7 +1,7 @@
 defmodule Ersatz.MixProject do
   use Mix.Project
 
-  @version "0.5.0"
+  @version "0.1.0"
 
   def project do
     [
@@ -10,7 +10,7 @@ defmodule Ersatz.MixProject do
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       name: "Ersatz",
-      description: "Mocks and explicit contracts for Elixir",
+      description: "Mocks defined from behaviours for Elixir",
       deps: deps(),
       docs: docs(),
       package: package()
