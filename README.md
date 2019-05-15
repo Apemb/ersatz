@@ -32,6 +32,12 @@ def deps do
 end
 ```
 
+## To Do
+
+- [ ] clarify documentation
+- [ ] function to clear all previous calls
+- [ ] add custom assertions for ExUnit
+
 ## License
 
 Ersatz is a fork of Plataformatec Mox library.
