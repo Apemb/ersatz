@@ -30,7 +30,8 @@ defmodule Ersatz.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
+      {:espec, "~> 1.7.0"}
     ]
   end
 
