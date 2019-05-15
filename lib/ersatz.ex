@@ -333,7 +333,21 @@ defmodule Ersatz do
   end
 
   @doc """
-  TODO: write doc for set_mock_implementation/3
+  TODO: complete doc for set_mock_implementation/3
+
+  ## Options
+    - `times: 1` to specify the number of usage that are allowed for that mock implementation. If not specified
+    the mock implementation is permanent. Note that only one permanent mock implementation is possible at the same time
+    but multiple time limited implementation are possible.
+
+  ## Example
+  ```
+  # For a permanent mock implementation
+  Ersatz.set_mock_implementation(&MockCalc.add/2, fn x, y -> x + y)
+
+  # For a mock implementation limited to 2 usages
+  Ersatz.set_mock_implementation(&MockCalc.add/2, fn x, y -> x + y, times: 2)
+  ```
   """
   def set_mock_implementation(function_to_mock, mock_function, options \\ [])
       when is_function(function_to_mock) and is_function(mock_function) do
@@ -374,24 +388,18 @@ defmodule Ersatz do
       {:error, {:currently_allowed, owner_pid}} ->
         inspected = inspect(self())
 
-        raise ArgumentError, """
-        cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                                                                        because the process has been allowed by #{
-          inspect(owner_pid)
-        }. \
-                                                                                                                        You cannot define expectations/stubs in a process that has been allowed
-        """
+        raise ArgumentError,
+              "cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected})" <>
+              "because the process has been allowed by #{ inspect(owner_pid) }." <>
+              "You cannot define expectations/stubs in a process that has been allowed."
 
       {:error, {:not_global_owner, global_pid}} ->
         inspected = inspect(self())
 
-        raise ArgumentError, """
-        cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-                                                                                                                        because Ersatz is in global mode and the global process is #{
-          inspect(global_pid)
-        }. \
-                                                                                                                        Only the process that set Ersatz to global can set expectations/stubs in global mode
-        """
+        raise ArgumentError,
+              "cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) " <>
+              "because Ersatz is in global mode and the global process is #{inspect(global_pid)}. " <>
+              "Only the process that set Ersatz to global can set expectations/stubs in global mode."
     end
   end
 

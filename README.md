@@ -37,7 +37,7 @@ end
 - [ ] clarify documentation
 - [ ] function to clear all previous calls
 - [ ] add custom assertions for ExUnit
-- [ ] add configuration for initializing mocks before start of application under test
+- [X] add configuration for initializing mocks before start of application under test
 - [X] correct Espec into ESpec
 
 ## License

@@ -17,14 +17,16 @@ defmodule Ersatz.MixProject do
         source_ref: "v_#{@version}"
       ],
       deps: deps(),
-      package: package()
+      package: package(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
   def application do
     [
       extra_applications: [:logger],
-      mod: {Ersatz.Application, []}
+      mod: {Ersatz.Application, []},
+      start_phases: [setup_initial_configuration: []]
     ]
   end
 
@@ -44,4 +46,7 @@ defmodule Ersatz.MixProject do
       }
     }
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 end

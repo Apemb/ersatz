@@ -2,7 +2,7 @@ defmodule ErsatzEspecMatchersSpec do
   use ESpec
 
   import Ersatz
-  import Ersatz.Matchers.Espec
+  import Ersatz.Matchers.ESpec
 
   defmodule Calculator do
     @callback add(integer(), integer()) :: integer()
