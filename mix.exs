@@ -1,7 +1,7 @@
 defmodule Ersatz.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
 
   def project do
     [
@@ -13,8 +13,8 @@ defmodule Ersatz.MixProject do
       description: "Mocks defined from behaviours for Elixir",
       source_url: "https://github.com/apemb/ersatz",
       docs: [
-        main: "Ersatz"
-#        source_ref: "v#{@version}"
+        main: "Ersatz",
+        source_ref: "v_#{@version}"
       ],
       deps: deps(),
       package: package()

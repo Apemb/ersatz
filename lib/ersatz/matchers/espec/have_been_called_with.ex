@@ -1,4 +1,4 @@
-defmodule Ersatz.Matchers.Espec.HaveBeenCalledWith do
+defmodule Ersatz.Matchers.ESpec.HaveBeenCalledWith do
   @moduledoc false
 
   use ESpec.Assertions.Interface

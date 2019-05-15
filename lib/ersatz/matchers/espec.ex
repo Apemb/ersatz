@@ -1,10 +1,10 @@
-defmodule Ersatz.Matchers.Espec do
+defmodule Ersatz.Matchers.ESpec do
   @moduledoc """
   Custom matchers to ease the use of espec.
   """
 
-  alias Ersatz.Matchers.Espec.HaveBeenCalled
-  alias Ersatz.Matchers.Espec.HaveBeenCalledWith
+  alias Ersatz.Matchers.ESpec.HaveBeenCalled
+  alias Ersatz.Matchers.ESpec.HaveBeenCalledWith
 
   @doc """
   Tests if the mock function was called.
