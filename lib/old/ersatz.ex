@@ -1,5 +1,7 @@
 defmodule Old.Ersatz do
-  @moduledoc """
+  @moduledoc false
+
+  @xmoduledoc """
   Old.Ersatz is a library for defining concurrent mocks in Elixir.
 
   The library follows the principles outlined in

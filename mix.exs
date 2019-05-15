@@ -11,8 +11,12 @@ defmodule Ersatz.MixProject do
       start_permanent: Mix.env() == :prod,
       name: "Ersatz",
       description: "Mocks defined from behaviours for Elixir",
+      source_url: "https://github.com/apemb/ersatz",
+      docs: [
+        main: "Ersatz"
+#        source_ref: "v#{@version}"
+      ],
       deps: deps(),
-      docs: docs(),
       package: package()
     ]
   end
@@ -26,15 +30,7 @@ defmodule Ersatz.MixProject do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.16", only: :docs}
-    ]
-  end
-
-  defp docs do
-    [
-      main: "Ersatz",
-      source_ref: "v#{@version}",
-      source_url: "https://github.com/apemb/ersatz"
+      {:ex_doc, "~> 0.19", only: :dev, runtime: false}
     ]
   end
 
@@ -42,7 +38,9 @@ defmodule Ersatz.MixProject do
     %{
       licenses: ["Apache 2"],
       maintainers: ["Antoine Boileau"],
-      links: %{"GitHub" => "https://github.com/apemb/ersatz"}
+      links: %{
+        "GitHub" => "https://github.com/apemb/ersatz"
+      }
     }
   end
 end
