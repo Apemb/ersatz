@@ -25,6 +25,7 @@ jobs:
       - attach_workspace:
           at: deps
       - run: mix test
+      - run: mix espec
 
 workflows:
   version: 2
