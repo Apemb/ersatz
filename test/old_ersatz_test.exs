@@ -1,8 +1,8 @@
-defmodule ErsatzTest do
+defmodule OldErsatzTest do
   use ExUnit.Case, async: true
 
-  import Ersatz
-  doctest Ersatz
+  import Old.Ersatz
+  doctest Old.Ersatz
 
   defmodule Calculator do
     @callback add(integer(), integer()) :: integer()
@@ -211,7 +211,7 @@ defmodule ErsatzTest do
 
       msg = ~r"expected CalcMock.add/2 to be called 0 times but it has been called once"
 
-      assert_raise Ersatz.UnexpectedCallError, msg, fn ->
+      assert_raise Old.Ersatz.UnexpectedCallError, msg, fn ->
         CalcMock.add(2, 3) == 5
       end
     end
@@ -236,7 +236,7 @@ defmodule ErsatzTest do
 
       Task.await(task)
 
-      assert_raise Ersatz.UnexpectedCallError, fn ->
+      assert_raise Old.Ersatz.UnexpectedCallError, fn ->
         CalcMock.add(1, 1)
       end
 
@@ -267,7 +267,7 @@ defmodule ErsatzTest do
     end
 
     test "raises if there is no expectation" do
-      assert_raise Ersatz.UnexpectedCallError,
+      assert_raise Old.Ersatz.UnexpectedCallError,
                    ~r"no expectation defined for CalcMock\.add/2.*with args \[2, 3\]",
                    fn ->
                      CalcMock.add(2, 3) == 5
@@ -278,7 +278,7 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
       assert CalcMock.add(2, 3) == 5
 
-      assert_raise Ersatz.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
+      assert_raise Old.Ersatz.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
         CalcMock.add(2, 3) == 5
       end
 
@@ -287,7 +287,7 @@ defmodule ErsatzTest do
 
       msg = ~r"expected CalcMock.add/2 to be called 2 times"
 
-      assert_raise Ersatz.UnexpectedCallError, msg, fn ->
+      assert_raise Old.Ersatz.UnexpectedCallError, msg, fn ->
         CalcMock.add(2, 3) == 5
       end
     end
@@ -297,7 +297,7 @@ defmodule ErsatzTest do
 
       Task.async(fn ->
         msg =
-          ~r"Only the process that set Ersatz to global can set expectations/stubs in global mode"
+          ~r"Only the process that set Old.Ersatz to global can set expectations/stubs in global mode"
 
         assert_raise ArgumentError, msg, fn ->
           CalcMock
@@ -316,14 +316,14 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       assert CalcMock.add(2, 3) == 5
       verify!()
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
     test "verifies all mocks for the current process in global mode" do
@@ -333,7 +333,7 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
@@ -346,7 +346,7 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
   end
 
@@ -358,14 +358,14 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       assert CalcMock.add(2, 3) == 5
       verify!(CalcMock)
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
     test "verifies all mocks for current process in global mode" do
@@ -375,7 +375,7 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
@@ -388,7 +388,7 @@ defmodule ErsatzTest do
       expect(CalcMock, :add, fn x, y -> x + y end)
 
       message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
-      assert_raise Ersatz.VerificationError, message, &verify!/0
+      assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
     test "raises if a non-mock is given" do
@@ -586,7 +586,7 @@ defmodule ErsatzTest do
         assert SciCalcMock.add(1, 2) == 3
         assert SciCalcMock.mult(3, 4) == 12
 
-        assert_raise Ersatz.UnexpectedCallError, fn ->
+        assert_raise Old.Ersatz.UnexpectedCallError, fn ->
           SciCalcMock.exponent(2, 10)
         end
       end)
@@ -611,7 +611,7 @@ defmodule ErsatzTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+          assert_raise Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
 
           receive do
             :call_mock ->
@@ -641,7 +641,7 @@ defmodule ErsatzTest do
       |> stub(:mult, fn _, _ -> :stubbed end)
 
       async_no_callers(fn ->
-        assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+        assert_raise Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
 
         CalcMock
         |> allow(parent_pid, self())
@@ -657,7 +657,7 @@ defmodule ErsatzTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise(Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
+          assert_raise(Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
 
           receive do
             :call_mock ->
@@ -708,7 +708,7 @@ defmodule ErsatzTest do
 
       Task.await(task)
 
-      assert_raise Ersatz.UnexpectedCallError, fn ->
+      assert_raise Old.Ersatz.UnexpectedCallError, fn ->
         CalcMock.add(1, 1)
       end
 

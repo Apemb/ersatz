@@ -1,6 +1,6 @@
-defmodule Ersatz do
+defmodule Old.Ersatz do
   @moduledoc """
-  Ersatz is a library for defining concurrent mocks in Elixir.
+  Old.Ersatz is a library for defining concurrent mocks in Elixir.
 
   The library follows the principles outlined in
   ["Mocks and explicit contracts"](http://blog.plataformatec.com.br/2015/10/mocks-and-explicit-contracts/),
@@ -28,13 +28,13 @@ defmodule Ersatz do
   If you want to mock the calculator behaviour during tests, the first step
   is to define the mock, usually in your `test_helper.exs`:
 
-      Ersatz.defmock(MyApp.CalcMock, for: MyApp.Calculator)
+      Old.Ersatz.defmock(MyApp.CalcMock, for: MyApp.Calculator)
 
   Now in your tests, you can define expectations and verify them:
 
       use ExUnit.Case, async: true
 
-      import Ersatz
+      import Old.Ersatz
 
       # Make sure mocks are verified when the test exits
       setup :verify_on_exit!
@@ -61,12 +61,12 @@ defmodule Ersatz do
 
   All expectations are defined based on the current process. This
   means multiple tests using the same mock can still run concurrently
-  unless the Ersatz is set to global mode. See the "Multi-process collaboration"
+  unless the Old.Ersatz is set to global mode. See the "Multi-process collaboration"
   section.
 
   ## Multiple behaviours
 
-  Ersatz supports defining mocks for multiple behaviours.
+  Old.Ersatz supports defining mocks for multiple behaviours.
 
   Suppose your library also defines a scientific calculator behaviour:
 
@@ -76,7 +76,7 @@ defmodule Ersatz do
 
   You can mock both the calculator and scientific calculator behaviour:
 
-      Ersatz.defmock(MyApp.SciCalcMock, for: [MyApp.Calculator, MyApp.ScientificCalculator])
+      Old.Ersatz.defmock(MyApp.SciCalcMock, for: [MyApp.Calculator, MyApp.ScientificCalculator])
 
   ## Compile-time requirements
 
@@ -85,7 +85,7 @@ defmodule Ersatz do
   defining the mock in your `test_helper.exs`, you should instead define
   it under `test/support/mocks.ex`:
 
-      Ersatz.defmock(MyApp.CalcMock, for: MyApp.Calculator)
+      Old.Ersatz.defmock(MyApp.CalcMock, for: MyApp.Calculator)
 
   Then you need to make sure that files in `test/support` get compiled
   with the rest of the project. Edit your `mix.exs` file to add the
@@ -104,7 +104,7 @@ defmodule Ersatz do
 
   ## Multi-process collaboration
 
-  Ersatz supports multi-process collaboration via two mechanisms:
+  Old.Ersatz supports multi-process collaboration via two mechanisms:
 
     1. explicit allowances
     2. global mode
@@ -139,7 +139,7 @@ defmodule Ersatz do
 
   ### Global mode
 
-  Ersatz supports global mode, where any process can consume mocks and stubs
+  Old.Ersatz supports global mode, where any process can consume mocks and stubs
   defined in your tests. To manually switch to global mode use:
 
       set_ersatz_global()
@@ -165,7 +165,7 @@ defmodule Ersatz do
   mocks run on `private` mode.
 
   You can also automatically choose global or private mode depending on
-  if your tests run in async mode or not. In such case Ersatz will use
+  if your tests run in async mode or not. In such case Old.Ersatz will use
   private mode when `async: true`, global mode otherwise:
 
       setup :set_ersatz_from_context
@@ -181,26 +181,26 @@ defmodule Ersatz do
   end
 
   @doc """
-  Sets the Ersatz to private mode, where mocks can be set and
+  Sets the Old.Ersatz to private mode, where mocks can be set and
   consumed by the same process unless other processes are
   explicitly allowed.
 
       setup :set_ersatz_private
 
   """
-  def set_ersatz_private(_context \\ %{}), do: Ersatz.Server.set_mode(self(), :private)
+  def set_ersatz_private(_context \\ %{}), do: Old.Ersatz.Server.set_mode(self(), :private)
 
   @doc """
-  Sets the Ersatz to global mode, where mocks can be consumed
+  Sets the Old.Ersatz to global mode, where mocks can be consumed
   by any process.
 
       setup :set_ersatz_global
 
   """
-  def set_ersatz_global(_context \\ %{}), do: Ersatz.Server.set_mode(self(), :global)
+  def set_ersatz_global(_context \\ %{}), do: Old.Ersatz.Server.set_mode(self(), :global)
 
   @doc """
-  Chooses the Ersatz mode based on context. When `async: true` is used
+  Chooses the Old.Ersatz mode based on context. When `async: true` is used
   the mode is `:private`, otherwise `:global` is chosen.
 
       setup :set_ersatz_from_context
@@ -212,11 +212,11 @@ defmodule Ersatz do
   @doc """
   Defines a mock with the given name `:for` the given behaviour(s).
 
-      Ersatz.defmock(MyMock, for: MyBehaviour)
+      Old.Ersatz.defmock(MyMock, for: MyBehaviour)
 
   With multiple behaviours:
 
-      Ersatz.defmock(MyMock, for: [MyBehaviour, MyOtherBehaviour])
+      Old.Ersatz.defmock(MyMock, for: [MyBehaviour, MyOtherBehaviour])
 
   ## Skipping optional callbacks
 
@@ -225,7 +225,7 @@ defmodule Ersatz do
   provide the list of callback names to skip (along with their arities) as
   `:skip_optional_callbacks`:
 
-      Ersatz.defmock(MyMock, for: MyBehaviour, skip_optional_callbacks: [on_success: 2])
+      Old.Ersatz.defmock(MyMock, for: MyBehaviour, skip_optional_callbacks: [on_success: 2])
 
   This will define a new mock (`MyMock`) that has a defined function for each
   callback on `MyBehaviour` except for `on_success/2`. Note: you can only skip
@@ -283,7 +283,7 @@ defmodule Ersatz do
 
       quote do
         def unquote(fun)(unquote_splicing(args)) do
-          Ersatz.__dispatch__(__MODULE__, unquote(fun), unquote(arity), unquote(args))
+          Old.Ersatz.__dispatch__(__MODULE__, unquote(fun), unquote(arity), unquote(args))
         end
       end
     end
@@ -449,7 +449,7 @@ defmodule Ersatz do
       raise ArgumentError, "unknown function #{name}/#{arity} for mock #{inspect(mock)}"
     end
 
-    case Ersatz.Server.add_expectation(self(), key, value) do
+    case Old.Ersatz.Server.add_expectation(self(), key, value) do
       :ok ->
         :ok
 
@@ -467,8 +467,8 @@ defmodule Ersatz do
 
         raise ArgumentError, """
         cannot add expectations/stubs to #{inspect(mock)} in the current process (#{inspected}) \
-        because Ersatz is in global mode and the global process is #{inspect(global_pid)}. \
-        Only the process that set Ersatz to global can set expectations/stubs in global mode
+        because Old.Ersatz is in global mode and the global process is #{inspect(global_pid)}. \
+        Only the process that set Old.Ersatz to global can set expectations/stubs in global mode
         """
     end
   end
@@ -495,7 +495,7 @@ defmodule Ersatz do
       raise ArgumentError, "owner_pid and allowed_pid must be different"
     end
 
-    case Ersatz.Server.allow(mock, owner_pid, allowed_pid) do
+    case Old.Ersatz.Server.allow(mock, owner_pid, allowed_pid) do
       :ok ->
         mock
 
@@ -533,11 +533,11 @@ defmodule Ersatz do
   """
   def verify_on_exit!(_context \\ %{}) do
     pid = self()
-    Ersatz.Server.verify_on_exit(pid)
+    Old.Ersatz.Server.verify_on_exit(pid)
 
-    ExUnit.Callbacks.on_exit(Ersatz, fn ->
+    ExUnit.Callbacks.on_exit(Old.Ersatz, fn ->
       verify_mock_or_all!(pid, :all)
-      Ersatz.Server.exit(pid)
+      Old.Ersatz.Server.exit(pid)
     end)
   end
 
@@ -558,7 +558,7 @@ defmodule Ersatz do
   end
 
   defp verify_mock_or_all!(pid, mock) do
-    pending = Ersatz.Server.verify(pid, mock)
+    pending = Old.Ersatz.Server.verify(pid, mock)
 
     messages =
       for {{module, name, arity}, total, pending} <- pending do
@@ -592,7 +592,7 @@ defmodule Ersatz do
   def __dispatch__(mock, name, arity, args) do
     all_callers = [self() | caller_pids()]
 
-    case Ersatz.Server.fetch_fun_to_dispatch(all_callers, {mock, name, arity}) do
+    case Old.Ersatz.Server.fetch_fun_to_dispatch(all_callers, {mock, name, arity}) do
       :no_expectation ->
         mfa = Exception.format_mfa(mock, name, arity)
 

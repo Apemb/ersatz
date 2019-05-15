@@ -1,4 +1,4 @@
-defmodule Ersatz.Server do
+defmodule Old.Ersatz.Server do
   @moduledoc false
 
   use GenServer
