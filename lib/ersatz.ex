@@ -1,4 +1,4 @@
-defmodule ErsatzNeo do
+defmodule Ersatz do
   @moduledoc """
   Ersatz is a library for defining concurrent mocks in Elixir.
 
@@ -188,7 +188,7 @@ defmodule ErsatzNeo do
       setup :set_ersatz_private
 
   """
-  def set_ersatz_private(_context \\ %{}), do: Ersatz.ServerNeo.set_mode(self(), :private)
+  def set_ersatz_private(_context \\ %{}), do: Ersatz.Server.set_mode(self(), :private)
 
   @doc """
   Sets the Ersatz to global mode, where mocks can be consumed
@@ -197,7 +197,7 @@ defmodule ErsatzNeo do
       setup :set_ersatz_global
 
   """
-  def set_ersatz_global(_context \\ %{}), do: Ersatz.ServerNeo.set_mode(self(), :global)
+  def set_ersatz_global(_context \\ %{}), do: Ersatz.Server.set_mode(self(), :global)
 
   @doc """
   Chooses the Ersatz mode based on context. When `async: true` is used
@@ -286,7 +286,7 @@ defmodule ErsatzNeo do
 
       quote do
         def unquote(fun)(unquote_splicing(args)) do
-          ErsatzNeo.__dispatch__(__MODULE__, unquote(fun), unquote(arity), unquote(args))
+          Ersatz.__dispatch__(__MODULE__, unquote(fun), unquote(arity), unquote(args))
         end
       end
     end
@@ -367,7 +367,7 @@ defmodule ErsatzNeo do
 
     validate_function!(mock, name, arity)
 
-    case Ersatz.ServerNeo.add_expectation(self(), key, value) do
+    case Ersatz.Server.add_expectation(self(), key, value) do
       :ok ->
         :ok
 
@@ -428,7 +428,7 @@ defmodule ErsatzNeo do
     validate_mock!(mock_module)
     validate_function!(mock_module, function_name, arity)
 
-    case Ersatz.ServerNeo.fetch_fun_calls(all_callers, {mock_module, function_name, arity}) do
+    case Ersatz.Server.fetch_fun_calls(all_callers, {mock_module, function_name, arity}) do
       {:ok, calls} when is_list(calls) ->
         calls
       {:ok, nil} ->
@@ -448,7 +448,7 @@ defmodule ErsatzNeo do
     validate_mock!(mock_module)
     validate_function!(mock_module, function_name, arity)
 
-    case Ersatz.ServerNeo.clear_mock_calls(all_callers, {mock_module, function_name, arity}) do
+    case Ersatz.Server.clear_mock_calls(all_callers, {mock_module, function_name, arity}) do
       :ok -> :ok
       {:error, reason} ->
         raise UnexpectedCallError, "todo error on clear mocks call #{reason}"
@@ -459,7 +459,7 @@ defmodule ErsatzNeo do
   def __dispatch__(mock, name, arity, args) do
     all_callers = [self() | caller_pids()]
 
-    case Ersatz.ServerNeo.fetch_fun_to_dispatch(all_callers, {mock, name, arity}, args) do
+    case Ersatz.Server.fetch_fun_to_dispatch(all_callers, {mock, name, arity}, args) do
       :no_expectation ->
         mfa = Exception.format_mfa(mock, name, arity)
 
