@@ -15,8 +15,8 @@ defmodule OldErsatzTest do
     @optional_callbacks [sin: 1]
   end
 
-  defmock(CalcMock, for: Calculator)
-  defmock(SciCalcMock, for: [Calculator, ScientificCalculator])
+  defmock(OldCalcMock, for: Calculator)
+  defmock(OldSciCalcMock, for: [Calculator, ScientificCalculator])
 
   def in_all_modes(callback) do
     set_ersatz_global()
@@ -28,51 +28,51 @@ defmodule OldErsatzTest do
   describe "defmock/2" do
     test "raises for unknown module" do
       assert_raise ArgumentError, ~r"module Unknown is not available", fn ->
-        defmock(MyMock, for: Unknown)
+        defmock(MyOldMock, for: Unknown)
       end
     end
 
     test "raises for non behaviour" do
       assert_raise ArgumentError, ~r"module String is not a behaviour", fn ->
-        defmock(MyMock, for: String)
+        defmock(MyOldMock, for: String)
       end
     end
 
     test "raises if :for is missing" do
       assert_raise ArgumentError, ":for option is required on defmock", fn ->
-        defmock(MyMock, [])
+        defmock(MyOldMock, [])
       end
     end
 
     test "accepts a list of behaviours" do
-      assert defmock(MyMock, for: [Calculator, ScientificCalculator])
+      assert defmock(MyOldMock, for: [Calculator, ScientificCalculator])
     end
 
     test "defines a mock function for all callbacks by default" do
-      defmock(MyScientificMock, for: ScientificCalculator)
+      defmock(MyOldScientificMock, for: ScientificCalculator)
       all_callbacks = ScientificCalculator.behaviour_info(:callbacks)
       assert all_callbacks -- MyScientificMock.__info__(:functions) == []
     end
 
     test "accepts a list of callbacks to skip" do
-      defmock(MyMultiMock,
+      defmock(MyOldMultiMock,
         for: [Calculator, ScientificCalculator],
         skip_optional_callbacks: [sin: 1]
       )
 
       all_callbacks = ScientificCalculator.behaviour_info(:callbacks)
-      assert all_callbacks -- MyMultiMock.__info__(:functions) == [sin: 1]
+      assert all_callbacks -- MyOldMultiMock.__info__(:functions) == [sin: 1]
     end
 
     test "accepts false to indicate all functions should be generated" do
-      defmock(MyFalseMock, for: [Calculator, ScientificCalculator], skip_optional_callbacks: false)
+      defmock(MyOldFalseMock, for: [Calculator, ScientificCalculator], skip_optional_callbacks: false)
 
       all_callbacks = ScientificCalculator.behaviour_info(:callbacks)
       assert all_callbacks -- MyFalseMock.__info__(:functions) == []
     end
 
     test "accepts true to indicate no optional functions should be generated" do
-      defmock(MyTrueMock, for: [Calculator, ScientificCalculator], skip_optional_callbacks: true)
+      defmock(MyOldTrueMock, for: [Calculator, ScientificCalculator], skip_optional_callbacks: true)
       all_callbacks = ScientificCalculator.behaviour_info(:callbacks)
       assert all_callbacks -- MyTrueMock.__info__(:functions) == [sin: 1]
     end
@@ -81,7 +81,7 @@ defmodule OldErsatzTest do
       assert_raise ArgumentError,
                    ":skip_optional_callbacks is required to be a list or boolean",
                    fn ->
-                     defmock(MyMock, for: Calculator, skip_optional_callbacks: 42)
+                     defmock(MyOldMock, for: Calculator, skip_optional_callbacks: 42)
                    end
     end
 
@@ -92,7 +92,7 @@ defmodule OldErsatzTest do
           " of all optional callbacks: []"
 
       assert_raise ArgumentError, expected_error, fn ->
-        defmock(MyMock,
+        defmock(MyOldMock,
           for: Calculator,
           skip_optional_callbacks: [some_other_function: 0]
         )
@@ -106,7 +106,7 @@ defmodule OldErsatzTest do
           " of all optional callbacks: [sin: 1]"
 
       assert_raise ArgumentError, expected_error, fn ->
-        defmock(MyMock,
+        defmock(MyOldMock,
           for: ScientificCalculator,
           skip_optional_callbacks: [exponent: 2]
         )
@@ -116,87 +116,87 @@ defmodule OldErsatzTest do
 
   describe "expect/4" do
     test "works with multiple behaviours" do
-      SciCalcMock
+      OldSciCalcMock
       |> expect(:exponent, fn x, y -> :math.pow(x, y) end)
       |> expect(:add, fn x, y -> x + y end)
 
-      assert SciCalcMock.exponent(2, 3) == 8
-      assert SciCalcMock.add(2, 3) == 5
+      assert OldSciCalcMock.exponent(2, 3) == 8
+      assert OldSciCalcMock.add(2, 3) == 5
     end
 
     test "is invoked n times by the same process in private mode" do
       set_ersatz_private()
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
       |> expect(:mult, fn x, y -> x * y end)
       |> expect(:add, fn _, _ -> 0 end)
 
-      assert CalcMock.add(2, 3) == 5
-      assert CalcMock.add(3, 2) == 5
-      assert CalcMock.add(:whatever, :whatever) == 0
-      assert CalcMock.mult(3, 2) == 6
+      assert OldCalcMock.add(2, 3) == 5
+      assert OldCalcMock.add(3, 2) == 5
+      assert OldCalcMock.add(:whatever, :whatever) == 0
+      assert OldCalcMock.mult(3, 2) == 6
     end
 
     test "is invoked n times by any process in global mode" do
       set_ersatz_global()
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
       |> expect(:mult, fn x, y -> x * y end)
       |> expect(:add, fn _, _ -> 0 end)
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
+          assert OldCalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(3, 2) == 5
         end)
 
       Task.await(task)
 
-      assert CalcMock.add(:whatever, :whatever) == 0
-      assert CalcMock.mult(3, 2) == 6
+      assert OldCalcMock.add(:whatever, :whatever) == 0
+      assert OldCalcMock.mult(3, 2) == 6
     end
 
     @tag :requires_caller_tracking
     test "is invoked n times by any process in private mode on Elixir 1.8" do
       set_ersatz_private()
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
       |> expect(:mult, fn x, y -> x * y end)
       |> expect(:add, fn _, _ -> 0 end)
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
+          assert OldCalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(3, 2) == 5
         end)
 
       Task.await(task)
 
-      assert CalcMock.add(:whatever, :whatever) == 0
-      assert CalcMock.mult(3, 2) == 6
+      assert OldCalcMock.add(:whatever, :whatever) == 0
+      assert OldCalcMock.mult(3, 2) == 6
     end
 
     @tag :requires_caller_tracking
     test "is invoked n times by a sub-process in private mode on Elixir 1.8" do
       set_ersatz_private()
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 2, fn x, y -> x + y end)
       |> expect(:mult, fn x, y -> x * y end)
       |> expect(:add, fn _, _ -> 0 end)
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
-          assert CalcMock.add(3, 2) == 5
+          assert OldCalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(3, 2) == 5
 
           inner_task =
             Task.async(fn ->
-              assert CalcMock.add(:whatever, :whatever) == 0
-              assert CalcMock.mult(3, 2) == 6
+              assert OldCalcMock.add(:whatever, :whatever) == 0
+              assert OldCalcMock.mult(3, 2) == 6
             end)
 
           Task.await(inner_task)
@@ -206,22 +206,22 @@ defmodule OldErsatzTest do
     end
 
     test "allows asserting that function is not called" do
-      CalcMock
+      OldCalcMock
       |> expect(:add, 0, fn x, y -> x + y end)
 
-      msg = ~r"expected CalcMock.add/2 to be called 0 times but it has been called once"
+      msg = ~r"expected OldCalcMock.add/2 to be called 0 times but it has been called once"
 
       assert_raise Old.Ersatz.UnexpectedCallError, msg, fn ->
-        CalcMock.add(2, 3) == 5
+        OldCalcMock.add(2, 3) == 5
       end
     end
 
     test "can be recharged" do
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(3, 2) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(3, 2) == 5
     end
 
     test "expectations are reclaimed if the global process dies" do
@@ -229,7 +229,7 @@ defmodule OldErsatzTest do
         Task.async(fn ->
           set_ersatz_global()
 
-          CalcMock
+          OldCalcMock
           |> expect(:add, fn _, _ -> :expected end)
           |> stub(:mult, fn _, _ -> :stubbed end)
         end)
@@ -237,13 +237,13 @@ defmodule OldErsatzTest do
       Task.await(task)
 
       assert_raise Old.Ersatz.UnexpectedCallError, fn ->
-        CalcMock.add(1, 1)
+        OldCalcMock.add(1, 1)
       end
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 1, fn x, y -> x + y end)
 
-      assert CalcMock.add(1, 1) == 2
+      assert OldCalcMock.add(1, 1) == 2
     end
 
     test "raises if a non-mock is given" do
@@ -257,38 +257,38 @@ defmodule OldErsatzTest do
     end
 
     test "raises if function is not in behaviour" do
-      assert_raise ArgumentError, ~r"unknown function oops/2 for mock CalcMock", fn ->
-        expect(CalcMock, :oops, fn x, y -> x + y end)
+      assert_raise ArgumentError, ~r"unknown function oops/2 for mock OldCalcMock", fn ->
+        expect(OldCalcMock, :oops, fn x, y -> x + y end)
       end
 
-      assert_raise ArgumentError, ~r"unknown function add/3 for mock CalcMock", fn ->
-        expect(CalcMock, :add, fn x, y, z -> x + y + z end)
+      assert_raise ArgumentError, ~r"unknown function add/3 for mock OldCalcMock", fn ->
+        expect(OldCalcMock, :add, fn x, y, z -> x + y + z end)
       end
     end
 
     test "raises if there is no expectation" do
       assert_raise Old.Ersatz.UnexpectedCallError,
-                   ~r"no expectation defined for CalcMock\.add/2.*with args \[2, 3\]",
+                   ~r"no expectation defined for OldCalcMock\.add/2.*with args \[2, 3\]",
                    fn ->
-                     CalcMock.add(2, 3) == 5
+                     OldCalcMock.add(2, 3) == 5
                    end
     end
 
     test "raises if all expectations are consumed" do
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
 
-      assert_raise Old.Ersatz.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
-        CalcMock.add(2, 3) == 5
+      assert_raise Old.Ersatz.UnexpectedCallError, ~r"expected OldCalcMock.add/2 to be called once", fn ->
+        OldCalcMock.add(2, 3) == 5
       end
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
 
-      msg = ~r"expected CalcMock.add/2 to be called 2 times"
+      msg = ~r"expected OldCalcMock.add/2 to be called 2 times"
 
       assert_raise Old.Ersatz.UnexpectedCallError, msg, fn ->
-        CalcMock.add(2, 3) == 5
+        OldCalcMock.add(2, 3) == 5
       end
     end
 
@@ -300,7 +300,7 @@ defmodule OldErsatzTest do
           ~r"Only the process that set Old.Ersatz to global can set expectations/stubs in global mode"
 
         assert_raise ArgumentError, msg, fn ->
-          CalcMock
+          OldCalcMock
           |> expect(:add, fn _, _ -> :expected end)
         end
       end)
@@ -313,16 +313,16 @@ defmodule OldErsatzTest do
       set_ersatz_private()
 
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+      message = ~r"expected OldCalcMock.add/2 to be invoked once but it was invoked 0 times"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
-      assert CalcMock.add(2, 3) == 5
+      assert OldCalcMock.add(2, 3) == 5
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+      message = ~r"expected OldCalcMock.add/2 to be invoked 2 times but it was invoked once"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
@@ -330,22 +330,22 @@ defmodule OldErsatzTest do
       set_ersatz_global()
 
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+      message = ~r"expected OldCalcMock.add/2 to be invoked once but it was invoked 0 times"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(2, 3) == 5
         end)
 
       Task.await(task)
 
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+      message = ~r"expected OldCalcMock.add/2 to be invoked 2 times but it was invoked once"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
   end
@@ -354,40 +354,40 @@ defmodule OldErsatzTest do
     test "verifies all mocks for the current process in private mode" do
       set_ersatz_private()
 
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      verify!(OldCalcMock)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+      message = ~r"expected OldCalcMock.add/2 to be invoked once but it was invoked 0 times"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
-      assert CalcMock.add(2, 3) == 5
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
+      verify!(OldCalcMock)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+      message = ~r"expected OldCalcMock.add/2 to be invoked 2 times but it was invoked once"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
     test "verifies all mocks for current process in global mode" do
       set_ersatz_global()
 
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      verify!(OldCalcMock)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked once but it was invoked 0 times"
+      message = ~r"expected OldCalcMock.add/2 to be invoked once but it was invoked 0 times"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(2, 3) == 5
         end)
 
       Task.await(task)
 
-      verify!(CalcMock)
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      verify!(OldCalcMock)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
-      message = ~r"expected CalcMock.add/2 to be invoked 2 times but it was invoked once"
+      message = ~r"expected OldCalcMock.add/2 to be invoked 2 times but it was invoked once"
       assert_raise Old.Ersatz.VerificationError, message, &verify!/0
     end
 
@@ -413,16 +413,16 @@ defmodule OldErsatzTest do
     test "verifies all mocks for the current process on exit in private mode" do
       set_ersatz_private()
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
     end
 
     test "verifies all mocks for the current process on exit with previous verification in private mode" do
       set_ersatz_private()
 
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
-      assert CalcMock.add(2, 3) == 5
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
+      assert OldCalcMock.add(2, 3) == 5
     end
 
     test "verifies all mocks even if none is used in global mode" do
@@ -433,11 +433,11 @@ defmodule OldErsatzTest do
     test "verifies all mocks for current process on exit in global mode" do
       set_ersatz_global()
 
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(2, 3) == 5
         end)
 
       Task.await(task)
@@ -447,11 +447,11 @@ defmodule OldErsatzTest do
       set_ersatz_global()
 
       verify!()
-      expect(CalcMock, :add, fn x, y -> x + y end)
+      expect(OldCalcMock, :add, fn x, y -> x + y end)
 
       task =
         Task.async(fn ->
-          assert CalcMock.add(2, 3) == 5
+          assert OldCalcMock.add(2, 3) == 5
         end)
 
       Task.await(task)
@@ -461,61 +461,61 @@ defmodule OldErsatzTest do
   describe "stub/3" do
     test "allows repeated invocations" do
       in_all_modes(fn ->
-        stub(CalcMock, :add, fn x, y -> x + y end)
-        assert CalcMock.add(1, 2) == 3
-        assert CalcMock.add(3, 4) == 7
+        stub(OldCalcMock, :add, fn x, y -> x + y end)
+        assert OldCalcMock.add(1, 2) == 3
+        assert OldCalcMock.add(3, 4) == 7
       end)
     end
 
     test "does not fail verification if not called" do
       in_all_modes(fn ->
-        stub(CalcMock, :add, fn x, y -> x + y end)
+        stub(OldCalcMock, :add, fn x, y -> x + y end)
         verify!()
       end)
     end
 
     test "gives expected calls precedence" do
       in_all_modes(fn ->
-        CalcMock
+        OldCalcMock
         |> stub(:add, fn x, y -> x + y end)
         |> expect(:add, fn _, _ -> :expected end)
 
-        assert CalcMock.add(1, 1) == :expected
+        assert OldCalcMock.add(1, 1) == :expected
         verify!()
       end)
     end
 
     test "invokes stub after expectations are fulfilled" do
       in_all_modes(fn ->
-        CalcMock
+        OldCalcMock
         |> stub(:add, fn _x, _y -> :stub end)
         |> expect(:add, 2, fn _, _ -> :expected end)
 
-        assert CalcMock.add(1, 1) == :expected
-        assert CalcMock.add(1, 1) == :expected
-        assert CalcMock.add(1, 1) == :stub
+        assert OldCalcMock.add(1, 1) == :expected
+        assert OldCalcMock.add(1, 1) == :expected
+        assert OldCalcMock.add(1, 1) == :stub
         verify!()
       end)
     end
 
     test "overwrites earlier stubs" do
       in_all_modes(fn ->
-        CalcMock
+        OldCalcMock
         |> stub(:add, fn x, y -> x + y end)
         |> stub(:add, fn _x, _y -> 42 end)
 
-        assert CalcMock.add(1, 1) == 42
+        assert OldCalcMock.add(1, 1) == 42
       end)
     end
 
     test "works with multiple behaviours" do
       in_all_modes(fn ->
-        SciCalcMock
+        OldSciCalcMock
         |> stub(:add, fn x, y -> x + y end)
         |> stub(:exponent, fn x, y -> :math.pow(x, y) end)
 
-        assert SciCalcMock.add(1, 1) == 2
-        assert SciCalcMock.exponent(2, 3) == 8
+        assert OldSciCalcMock.add(1, 1) == 2
+        assert OldSciCalcMock.exponent(2, 3) == 8
       end)
     end
 
@@ -533,12 +533,12 @@ defmodule OldErsatzTest do
 
     test "raises if function is not in behaviour" do
       in_all_modes(fn ->
-        assert_raise ArgumentError, ~r"unknown function oops/2 for mock CalcMock", fn ->
-          stub(CalcMock, :oops, fn x, y -> x + y end)
+        assert_raise ArgumentError, ~r"unknown function oops/2 for mock OldCalcMock", fn ->
+          stub(OldCalcMock, :oops, fn x, y -> x + y end)
         end
 
-        assert_raise ArgumentError, ~r"unknown function add/3 for mock CalcMock", fn ->
-          stub(CalcMock, :add, fn x, y, z -> x + y + z end)
+        assert_raise ArgumentError, ~r"unknown function add/3 for mock OldCalcMock", fn ->
+          stub(OldCalcMock, :add, fn x, y, z -> x + y + z end)
         end
       end)
     end
@@ -562,42 +562,42 @@ defmodule OldErsatzTest do
 
     test "can override stubs" do
       in_all_modes(fn ->
-        stub_with(CalcMock, CalcImplementation)
+        stub_with(OldCalcMock, CalcImplementation)
         |> expect(:add, fn 1, 2 -> 4 end)
 
-        assert CalcMock.add(1, 2) == 4
+        assert OldCalcMock.add(1, 2) == 4
         verify!()
       end)
     end
 
     test "stubs all functions with functions from a module" do
       in_all_modes(fn ->
-        stub_with(CalcMock, CalcImplementation)
-        assert CalcMock.add(1, 2) == 3
-        assert CalcMock.add(3, 4) == 7
-        assert CalcMock.mult(2, 2) == 4
-        assert CalcMock.mult(3, 4) == 12
+        stub_with(OldCalcMock, CalcImplementation)
+        assert OldCalcMock.add(1, 2) == 3
+        assert OldCalcMock.add(3, 4) == 7
+        assert OldCalcMock.mult(2, 2) == 4
+        assert OldCalcMock.mult(3, 4) == 12
       end)
     end
 
     test "Leaves behaviours not implemented by the module un-stubbed" do
       in_all_modes(fn ->
-        stub_with(SciCalcMock, CalcImplementation)
-        assert SciCalcMock.add(1, 2) == 3
-        assert SciCalcMock.mult(3, 4) == 12
+        stub_with(OldSciCalcMock, CalcImplementation)
+        assert OldSciCalcMock.add(1, 2) == 3
+        assert OldSciCalcMock.mult(3, 4) == 12
 
         assert_raise Old.Ersatz.UnexpectedCallError, fn ->
-          SciCalcMock.exponent(2, 10)
+          OldSciCalcMock.exponent(2, 10)
         end
       end)
     end
 
     test "can stub multiple behaviours from a single module" do
       in_all_modes(fn ->
-        stub_with(SciCalcMock, SciCalcImplementation)
-        assert SciCalcMock.add(1, 2) == 3
-        assert SciCalcMock.mult(3, 4) == 12
-        assert SciCalcMock.exponent(2, 10) == 1024
+        stub_with(OldSciCalcMock, SciCalcImplementation)
+        assert OldSciCalcMock.add(1, 2) == 3
+        assert OldSciCalcMock.mult(3, 4) == 12
+        assert OldSciCalcMock.exponent(2, 10) == 1024
       end)
     end
   end
@@ -611,17 +611,17 @@ defmodule OldErsatzTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+          assert_raise Old.Ersatz.UnexpectedCallError, fn -> OldCalcMock.add(1, 1) end
 
           receive do
             :call_mock ->
-              add_result = CalcMock.add(1, 1)
-              mult_result = CalcMock.mult(1, 1)
+              add_result = OldCalcMock.add(1, 1)
+              mult_result = OldCalcMock.mult(1, 1)
               send(parent_pid, {:verify, add_result, mult_result})
           end
         end)
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, fn _, _ -> :expected end)
       |> stub(:mult, fn _, _ -> :stubbed end)
       |> allow(self(), child_pid)
@@ -636,18 +636,18 @@ defmodule OldErsatzTest do
     test "allows different processes to share mocks from child process" do
       parent_pid = self()
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, fn _, _ -> :expected end)
       |> stub(:mult, fn _, _ -> :stubbed end)
 
       async_no_callers(fn ->
-        assert_raise Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+        assert_raise Old.Ersatz.UnexpectedCallError, fn -> OldCalcMock.add(1, 1) end
 
-        CalcMock
+        OldCalcMock
         |> allow(parent_pid, self())
 
-        assert CalcMock.add(1, 1) == :expected
-        assert CalcMock.mult(1, 1) == :stubbed
+        assert OldCalcMock.add(1, 1) == :expected
+        assert OldCalcMock.mult(1, 1) == :stubbed
       end)
       |> Task.await()
     end
@@ -657,12 +657,12 @@ defmodule OldErsatzTest do
 
       {:ok, child_pid} =
         start_link_no_callers(fn ->
-          assert_raise(Old.Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
+          assert_raise(Old.Ersatz.UnexpectedCallError, fn -> OldCalcMock.add(1, 1) end)
 
           receive do
             :call_mock ->
-              add_result = CalcMock.add(1, 1)
-              mult_result = CalcMock.mult(1, 1)
+              add_result = OldCalcMock.add(1, 1)
+              mult_result = OldCalcMock.mult(1, 1)
               send(parent_pid, {:verify, add_result, mult_result})
           end
         end)
@@ -671,14 +671,14 @@ defmodule OldErsatzTest do
         Task.start_link(fn ->
           receive do
             :allow_mock ->
-              CalcMock
+              OldCalcMock
               |> allow(self(), child_pid)
 
               send(child_pid, :call_mock)
           end
         end)
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, fn _, _ -> :expected end)
       |> stub(:mult, fn _, _ -> :stubbed end)
       |> allow(self(), transitive_pid)
@@ -700,7 +700,7 @@ defmodule OldErsatzTest do
 
       task =
         Task.async(fn ->
-          CalcMock
+          OldCalcMock
           |> expect(:add, fn _, _ -> :expected end)
           |> stub(:mult, fn _, _ -> :stubbed end)
           |> allow(self(), parent_pid)
@@ -709,13 +709,13 @@ defmodule OldErsatzTest do
       Task.await(task)
 
       assert_raise Old.Ersatz.UnexpectedCallError, fn ->
-        CalcMock.add(1, 1)
+        OldCalcMock.add(1, 1)
       end
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, 1, fn x, y -> x + y end)
 
-      assert CalcMock.add(1, 1) == 2
+      assert OldCalcMock.add(1, 1) == 2
     end
 
     test "allowances support locally registered processes" do
@@ -726,14 +726,14 @@ defmodule OldErsatzTest do
         Task.start_link(fn ->
           receive do
             :call_mock ->
-              add_result = CalcMock.add(1, 1)
+              add_result = OldCalcMock.add(1, 1)
               send(parent_pid, {:verify, add_result})
           end
         end)
 
       Process.register(child_pid, process_name)
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, fn _, _ -> :expected end)
       |> allow(self(), process_name)
 
@@ -752,7 +752,7 @@ defmodule OldErsatzTest do
         end
 
         def handle_call(:call_mock, _from, []) do
-          add_result = CalcMock.add(1, 1)
+          add_result = OldCalcMock.add(1, 1)
           {:reply, add_result, []}
         end
       end
@@ -761,7 +761,7 @@ defmodule OldErsatzTest do
       name = {:via, Registry, {Registry.Test, :test_process}}
       {:ok, _} = GenServer.start_link(CalculatorServer, [], name: name)
 
-      CalcMock
+      OldCalcMock
       |> expect(:add, fn _, _ -> :expected end)
       |> allow(self(), name)
 
@@ -771,7 +771,7 @@ defmodule OldErsatzTest do
 
     test "raises if you try to allow itself" do
       assert_raise ArgumentError, "owner_pid and allowed_pid must be different", fn ->
-        CalcMock
+        OldCalcMock
         |> allow(self(), self())
       end
     end
@@ -779,13 +779,13 @@ defmodule OldErsatzTest do
     test "raises if you try to allow already allowed process" do
       {:ok, child_pid} = Task.start_link(fn -> Process.sleep(:infinity) end)
 
-      CalcMock
+      OldCalcMock
       |> allow(self(), child_pid)
       |> allow(self(), child_pid)
 
       Task.async(fn ->
         assert_raise ArgumentError, ~r"it is already allowed by", fn ->
-          CalcMock
+          OldCalcMock
           |> allow(self(), child_pid)
         end
       end)
@@ -797,7 +797,7 @@ defmodule OldErsatzTest do
 
       {:ok, pid} =
         Task.start_link(fn ->
-          CalcMock
+          OldCalcMock
           |> expect(:add, fn _, _ -> :expected end)
 
           send(parent_pid, :ready)
@@ -807,7 +807,7 @@ defmodule OldErsatzTest do
       assert_receive :ready
 
       assert_raise ArgumentError, ~r"the process has already defined its own expectations", fn ->
-        CalcMock
+        OldCalcMock
         |> allow(self(), pid)
       end
     end
@@ -816,7 +816,7 @@ defmodule OldErsatzTest do
       parent_pid = self()
 
       Task.start_link(fn ->
-        CalcMock
+        OldCalcMock
         |> allow(self(), parent_pid)
 
         send(parent_pid, :ready)
@@ -826,7 +826,7 @@ defmodule OldErsatzTest do
       assert_receive :ready
 
       assert_raise ArgumentError, ~r"because the process has been allowed by", fn ->
-        CalcMock
+        OldCalcMock
         |> expect(:add, fn _, _ -> :expected end)
       end
     end
@@ -836,7 +836,7 @@ defmodule OldErsatzTest do
       {:ok, child_pid} = Task.start_link(fn -> Process.sleep(:infinity) end)
 
       Task.async(fn ->
-        mock = CalcMock
+        mock = OldCalcMock
         assert allow(mock, self(), child_pid) == mock
       end)
       |> Task.await()
