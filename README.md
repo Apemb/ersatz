@@ -5,6 +5,10 @@
 
 Ersatz is a library for defining mocks in Elixir.
 
+**It is not stable for the moment. In active developpement.**
+
+**Contributions welcome :-)**
+
 As a fork of Mox the library also follows some of principles outlined in ["Mocks and explicit contracts"](http://blog.plataformatec.com.br/2015/10/mocks-and-explicit-contracts/)
 , summarized below:
 
@@ -27,7 +31,7 @@ Add `ersatz` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ersatz, "~> 0.1", only: :test}
+    {:ersatz, "~> 0.1.1", only: :test}
   ]
 end
 ```
