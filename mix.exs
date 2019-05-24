@@ -18,6 +18,11 @@ defmodule Ersatz.MixProject do
       ],
       deps: deps(),
       package: package(),
+      aliases: aliases(),
+      preferred_cli_env: [
+        test_all: :test,
+        espec: :test
+      ],
       elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
@@ -26,7 +31,9 @@ defmodule Ersatz.MixProject do
     [
       extra_applications: [:logger],
       mod: {Ersatz.Application, []},
-      start_phases: [setup_initial_configuration: []]
+      start_phases: [
+        setup_initial_configuration: []
+      ]
     ]
   end
 
@@ -45,6 +52,12 @@ defmodule Ersatz.MixProject do
         "GitHub" => "https://github.com/apemb/ersatz"
       }
     }
+  end
+
+  defp aliases do
+    [
+      test_all: ["test", "espec"]
+    ]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
