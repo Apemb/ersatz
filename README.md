@@ -5,22 +5,18 @@
 
 Ersatz is a library for defining mocks in Elixir.
 
-**It is not stable for the moment. In active developpement.**
-
+**It is not guaranteed to be stable for the moment.**
 **Contributions welcome :-)**
 
-As a fork of Mox the library also follows some of principles outlined in ["Mocks and explicit contracts"](http://blog.plataformatec.com.br/2015/10/mocks-and-explicit-contracts/)
-, summarized below:
+Ersatz in a fork of [Mox](https://github.com/plataformatec/mox) and follows mosts of principles outlined in ["Mocks and explicit contracts"](http://blog.plataformatec.com.br/2015/10/mocks-and-explicit-contracts/).
 
-  1. No ad-hoc mocks. You can only create mocks based on behaviours
-
-  2. No dynamic generation of modules during tests. Mocks are preferably defined in your `test_helper.exs`
-   or in a `setup_all` block and not per test
-
-But the capacity to test the calls is not dependent on pattern matching (as in Mox for example), 
-and should be tested as a result of explicit assertion.
+[But why a fork ?](WHY_A_FORK.md)
  
-  ?? 1. Concurrency support. Tests using the same mock can still use `async: true`
+## Usage 
+
+-   Mocks are generated based on behaviours during configuration and injected using env variables.
+-   Add the mock behaviour by specifying functions to be used during tests with `Ersatz.set_mock_implementation/2`.
+-   Test your code's actions on the mock dependency using `Ersatz.get_mock_calls/1` or the Espec custom matchers.
 
 [See the documentation](https://hexdocs.pm/ersatz) for more information.
 
@@ -41,8 +37,8 @@ end
 - [ ] clarify documentation
 - [ ] function to clear all previous calls
 - [ ] add custom assertions for ExUnit
+- [ ] Test concurrency support. (should be ok, but... )
 - [X] add configuration for initializing mocks before start of application under test
-- [X] correct Espec into ESpec
 
 ## License
 
