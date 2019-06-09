@@ -1,20 +1,10 @@
 defmodule Ersatz do
   @moduledoc """
-  Ersatz is a library for defining concurrent mocks in Elixir.
+  Ersatz is a library for defining mocks in Elixir.
 
-  The library follows the principles outlined in
-  ["Mocks and explicit contracts"](http://blog.plataformatec.com.br/2015/10/mocks-and-explicit-contracts/),
-  summarized below:
-
-    1. No ad-hoc mocks. You can only create mocks based on behaviours
-
-    2. No dynamic generation of modules during tests. Mocks are preferably defined
-       in your `test_helper.exs` or in a `setup_all` block and not per test
-
-    3. Concurrency support. Tests using the same mock can still use `async: true`
-
-    4. Rely on pattern matching and function clauses for asserting on the
-       input instead of complex expectation rules
+  -   Mocks are generated based on behaviours during configuration and injected using env variables.
+  -   Add the mock behaviour by specifying functions to be used during tests with `Ersatz.set_mock_implementation/2`.
+  -   Test your code's actions on the mock dependency using `Ersatz.get_mock_calls/1` or the Espec custom matchers.
 
   ## Example
 
@@ -30,22 +20,25 @@ defmodule Ersatz do
 
       Ersatz.defmock(MyApp.CalcMock, for: MyApp.Calculator)
 
-  Now in your tests, you can define expectations and verify them:
+  Now in your tests, you can define mock implementations and verify that they were called the right number of times
+  and with the right parameters:
 
       use ExUnit.Case, async: true
 
       import Ersatz
 
-      # Make sure mocks are verified when the test exits
-      setup :verify_on_exit!
+      test "invokes add" do
+        # Arrange
+        Ersatz.set_mock_implementation(&MyApp.CalcMock.add/2, fn x, y -> x + y end)
 
-      test "invokes add and mult" do
-        MyApp.CalcMock
-        |> expect(:add, fn x, y -> x + y end)
-        |> expect(:mult, fn x, y -> x * y end)
+        # Act
+        result = MyApp.CalcMock.add(2, 3)
 
-        assert MyApp.CalcMock.add(2, 3) == 5
-        assert MyApp.CalcMock.mult(2, 3) == 6
+        # Assert
+        assert result == 5 # assert the result is the one we expected
+
+        api_mock_calls = Ersatz.get_mock_calls(&MyApp.CalcMock.add/2) # get the calls our mock implementation received
+        assert api_mock_calls == [[2, 3]] # assert the call args are the ones we expected
       end
 
   In practice, you will have to pass the mock to the system under the test.
@@ -103,6 +96,7 @@ defmodule Ersatz do
       defp elixirc_paths(_),     do: ["lib"]
 
   ## Multi-process collaboration
+  *Multi-process collaboration is under verification. Any bug you ca find is of great help*
 
   Ersatz supports multi-process collaboration via two mechanisms:
 
@@ -333,12 +327,17 @@ defmodule Ersatz do
   end
 
   @doc """
-  TODO: complete doc for set_mock_implementation/3
+  Specify the function to be used as mock. It can be a limited in use mock implementation or a permanent mock that does
+  not wear down (defaults to permanent mock).
+
+  Note that only one permanent mock implementation is possible at the same time but multiple time limited implementation
+  are possible (used in the same order they were added).
+
+  If no mock implementation is available and the mock is nevertheless called, an error is raised.
 
   ## Options
-    - `times: 1` to specify the number of usage that are allowed for that mock implementation. If not specified
-    the mock implementation is permanent. Note that only one permanent mock implementation is possible at the same time
-    but multiple time limited implementation are possible.
+    - `permanent: true` (default) to specify that the mock implementation is good for an unlimited number of uses.
+    - `times: 1` to specify the number of usage that are allowed for that mock implementation.
 
   ## Example
   ```
@@ -426,6 +425,15 @@ defmodule Ersatz do
     end
   end
 
+  @doc """
+  Get the calls arguments that were used to call the mock function.
+
+  ## Example
+  ```
+  # For a mock implementation that was called twice once with 2, 2 and the second time with 3, 4
+  Ersatz.get_mock_calls(&MockCalc.add/2) # [[2, 2], [3, 4]]
+  ```
+  """
   def get_mock_calls(mocked_function) when is_function(mocked_function) do
     all_callers = [self() | caller_pids()]
 
@@ -440,12 +448,23 @@ defmodule Ersatz do
       {:ok, calls} when is_list(calls) ->
         calls
       {:ok, nil} ->
+        # TODO: useful error message
         raise UnexpectedCallError, "todo error on get mock calls (arg {:ok, nil})"
       arg ->
+        # TODO: useful error message
         raise UnexpectedCallError, "todo error on get mock calls (arg #{arg})"
     end
   end
 
+  @doc """
+    Resets the calls to that mock function. Useful in case of permanent mock implementations shared between multiple
+    tests (using a setup block for example)
+
+    ## Example
+    ```
+    Ersatz.clear_mock_calls(&MockCalc.add/2)
+    ```
+  """
   def clear_mock_calls(mocked_function) when is_function(mocked_function) do
     all_callers = [self() | caller_pids()]
 
@@ -459,6 +478,7 @@ defmodule Ersatz do
     case Ersatz.Server.clear_mock_calls(all_callers, {mock_module, function_name, arity}) do
       :ok -> :ok
       {:error, reason} ->
+        # TODO: useful error message
         raise UnexpectedCallError, "todo error on clear mocks call #{reason}"
     end
   end
@@ -479,7 +499,6 @@ defmodule Ersatz do
 
         raise UnexpectedCallError, "expected #{mfa} to be called #{times(count)} but it has been " <>
                                    "called #{times(count + 1)} in process #{format_process()}"
-
 
       {:ok, fun_to_call} ->
         apply(fun_to_call, args)

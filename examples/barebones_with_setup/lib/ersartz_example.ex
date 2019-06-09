@@ -11,7 +11,9 @@ defmodule ErsatzExample do
 end
 
 defmodule ExampleAPI do
+
   alias HTTPoison
+
   @callback api_post(String.t(), [], []) :: {:ok, nil} | {:error, any()}
   def api_post(body \\ "", headers, options) do
     # if I don't mock this then this is an integration test!

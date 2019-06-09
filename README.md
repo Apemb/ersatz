@@ -36,6 +36,7 @@ end
 
 - [ ] clarify documentation
 - [ ] function to clear all previous calls
+- [ ] function to configure only a return value instead of a complete function
 - [ ] add custom assertions for ExUnit
 - [ ] Test concurrency support. (should be ok, but... )
 - [X] add configuration for initializing mocks before start of application under test

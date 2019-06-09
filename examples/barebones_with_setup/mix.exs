@@ -28,7 +28,7 @@ defmodule MoxExample.MixProject do
   defp deps do
     [
       {:httpoison, "~> 1.4"},
-      {:ersatz, "~> 0.4", only: :test}
+      {:ersatz, "~> 0.1", only: :test}
     ]
   end
 end
