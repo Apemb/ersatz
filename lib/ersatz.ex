@@ -331,7 +331,8 @@ defmodule Ersatz do
   not wear down (defaults to permanent mock).
 
   Note that only one permanent mock implementation is possible at the same time but multiple time limited implementation
-  are possible (used in the same order they were added).
+  are possible (used in the same order they were added). If a permanent and (multiple) temporary mock(s) implementations
+  are defined, the temporary mock implementations are used before the permanent one.
 
   If no mock implementation is available and the mock is nevertheless called, an error is raised.
 
@@ -357,30 +358,33 @@ defmodule Ersatz do
     {:name, function_name} = Function.info(function_to_mock, :name)
     {:arity, arity} = Function.info(function_to_mock, :arity)
 
+    return_object = Ersatz.ReturnObject.create_from_function(mock_function)
+
+    validate_mock_module!(mock_module)
+    validate_function!(function_to_mock)
+
+    replacement_function_arity = :erlang.fun_info(mock_function)[:arity]
+    unless arity == replacement_function_arity do
+      raise ArgumentError, "replacement function and #{function_name}/#{arity} do not have same arity"
+    end
+
     case number_of_usages do
       :permanent ->
-        add_expectation!(mock_module, function_name, arity, mock_function, {0, [], mock_function})
+        add_return_object!(mock_module, function_name, arity, {0, [], return_object})
 
       number_of_usages when is_integer(number_of_usages) and number_of_usages >= 0 ->
-        calls = List.duplicate(mock_function, number_of_usages)
-        add_expectation!(mock_module, function_name, arity, mock_function, {number_of_usages, calls, nil})
+        calls = List.duplicate(return_object, number_of_usages)
+        add_return_object!(mock_module, function_name, arity, {number_of_usages, calls, nil})
     end
 
     function_to_mock
   end
 
-  defp add_expectation!(mock, name, arity, mock_function, value) do
-    validate_mock!(mock)
-    replacement_function_arity = :erlang.fun_info(mock_function)[:arity]
-    key = {mock, name, replacement_function_arity}
+  defp add_return_object!(mock, name, arity, value) do
 
-    unless arity == replacement_function_arity do
-      raise ArgumentError, "replacement function and #{name}/#{arity} do not have same arity"
-    end
+    key = {mock, name, arity}
 
-    validate_function!(mock, name, arity)
-
-    case Ersatz.Server.add_expectation(self(), key, value) do
+    case Ersatz.Server.add_return_object(self(), key, value) do
       :ok ->
         :ok
 
@@ -402,20 +406,24 @@ defmodule Ersatz do
     end
   end
 
-  defp validate_mock!(mock) do
+  defp validate_mock_module!(mock_module) do
     cond do
-      not Code.ensure_compiled?(mock) ->
-        raise ArgumentError, "module #{inspect(mock)} is not available"
+      not Code.ensure_compiled?(mock_module) ->
+        raise ArgumentError, "module #{inspect(mock_module)} is not available"
 
-      not function_exported?(mock, :__mock_for__, 0) ->
-        raise ArgumentError, "module #{inspect(mock)} is not a mock"
+      not function_exported?(mock_module, :__mock_for__, 0) ->
+        raise ArgumentError, "module #{inspect(mock_module)} is not a mock"
 
       true ->
         :ok
     end
   end
 
-  defp validate_function!(mock_module, function_name, arity) do
+  defp validate_function!(function_to_mock) do
+    {:module, mock_module} = Function.info(function_to_mock, :module)
+    {:name, function_name} = Function.info(function_to_mock, :name)
+    {:arity, arity} = Function.info(function_to_mock, :arity)
+
     cond do
       not function_exported?(mock_module, function_name, arity) ->
         raise ArgumentError, "unknown function #{function_name}/#{arity} for mock #{inspect(mock_module)}"
@@ -441,8 +449,8 @@ defmodule Ersatz do
     {:name, function_name} = Function.info(mocked_function, :name)
     {:arity, arity} = Function.info(mocked_function, :arity)
 
-    validate_mock!(mock_module)
-    validate_function!(mock_module, function_name, arity)
+    validate_mock_module!(mock_module)
+    validate_function!(mocked_function)
 
     case Ersatz.Server.fetch_fun_calls(all_callers, {mock_module, function_name, arity}) do
       {:ok, calls} when is_list(calls) ->
@@ -472,8 +480,8 @@ defmodule Ersatz do
     {:name, function_name} = Function.info(mocked_function, :name)
     {:arity, arity} = Function.info(mocked_function, :arity)
 
-    validate_mock!(mock_module)
-    validate_function!(mock_module, function_name, arity)
+    validate_mock_module!(mock_module)
+    validate_function!(mocked_function)
 
     case Ersatz.Server.clear_mock_calls(all_callers, {mock_module, function_name, arity}) do
       :ok -> :ok
@@ -487,7 +495,7 @@ defmodule Ersatz do
   def __dispatch__(mock, name, arity, args) do
     all_callers = [self() | caller_pids()]
 
-    case Ersatz.Server.fetch_fun_to_dispatch(all_callers, {mock, name, arity}, args) do
+    case Ersatz.Server.fetch_return_object_to_dispatch(all_callers, {mock, name, arity}, args) do
       :no_expectation ->
         mfa = Exception.format_mfa(mock, name, arity)
 
@@ -500,8 +508,8 @@ defmodule Ersatz do
         raise UnexpectedCallError, "expected #{mfa} to be called #{times(count)} but it has been " <>
                                    "called #{times(count + 1)} in process #{format_process()}"
 
-      {:ok, fun_to_call} ->
-        apply(fun_to_call, args)
+      {:ok, return_object} ->
+        Ersatz.ReturnObject.define_return_value(return_object, args)
     end
   end
 

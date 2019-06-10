@@ -10,12 +10,15 @@ defmodule Ersatz.Server do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
-  def add_expectation(owner_pid, key, value) do
-    GenServer.call(__MODULE__, {:add_expectation, owner_pid, key, value}, @timeout)
+  # TODO: Add more explicit object for value ( {number_of_calls, [function1, function1 ...] = calls, stub}
+  # permanent mocks (the stub) and the number of calls + function are mutually exclusive. So maybe do a struct that
+  # does one or the other ?
+  def add_return_object(owner_pid, key, value) do
+    GenServer.call(__MODULE__, {:add_return_object, owner_pid, key, value}, @timeout)
   end
 
-  def fetch_fun_to_dispatch(caller_pids, key, args) do
-    GenServer.call(__MODULE__, {:fetch_fun_to_dispatch, caller_pids, key, args}, @timeout)
+  def fetch_return_object_to_dispatch(caller_pids, key, args) do
+    GenServer.call(__MODULE__, {:fetch_return_object_to_dispatch, caller_pids, key, args}, @timeout)
   end
 
   def fetch_fun_calls(caller_pids, key) do
@@ -53,7 +56,7 @@ defmodule Ersatz.Server do
   end
 
   def handle_call(
-        {:add_expectation, owner_pid, {mock, _, _} = key, expectation},
+        {:add_return_object, owner_pid, {mock, _, _} = key, expectation},
         _from,
         %{mode: :private} = state
       ) do
@@ -76,7 +79,7 @@ defmodule Ersatz.Server do
   end
 
   def handle_call(
-        {:add_expectation, owner_pid, {_mock, _, _} = key, expectation},
+        {:add_return_object, owner_pid, {_mock, _, _} = key, expectation},
         _from,
         %{mode: :global, global_owner_pid: global_owner_pid} = state
       ) do
@@ -97,7 +100,7 @@ defmodule Ersatz.Server do
   end
 
   def handle_call(
-        {:fetch_fun_to_dispatch, caller_pids, {mock, _, _} = key, args},
+        {:fetch_return_object_to_dispatch, caller_pids, {mock, _, _} = key, args},
         _from,
         %{mode: :private} = state
       ) do
@@ -145,7 +148,7 @@ defmodule Ersatz.Server do
   end
 
   def handle_call(
-        {:fetch_fun_to_dispatch, _caller_pids, {_mock, _, _} = key, args},
+        {:fetch_return_object_to_dispatch, _caller_pids, {_mock, _, _} = key, args},
         _from,
         %{mode: :global} = state
       ) do
