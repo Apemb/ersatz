@@ -127,11 +127,15 @@ defmodule ErsatzTest do
   describe "set_mock_implementation/3" do
 
     test "works with multiple behaviours" do
-      Ersatz.set_mock_implementation(&SciCalcMock.exponent/2, fn x, y -> x - y end)
-      Ersatz.set_mock_implementation(&SciCalcMock.add/2, fn x, y -> x * y end)
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_implementation(&SciCalcMock.exponent/2, fn x, y -> x - y end)
+          Ersatz.set_mock_implementation(&SciCalcMock.add/2, fn x, y -> x * y end)
 
-      assert SciCalcMock.exponent(4, 4) == 0
-      assert SciCalcMock.add(2, 3) == 6
+          assert SciCalcMock.exponent(4, 4) == 0
+          assert SciCalcMock.add(2, 3) == 6
+        end
+      )
     end
 
     test "is invoked n times by the same process in private mode" do
@@ -362,6 +366,244 @@ defmodule ErsatzTest do
     end
   end
 
+  describe "set_mock_return_value/3" do
+
+    test "works with multiple behaviours" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&SciCalcMock.exponent/2, 0)
+          Ersatz.set_mock_return_value(&SciCalcMock.add/2, 6)
+
+          assert SciCalcMock.exponent(4, 4) == 0
+          assert SciCalcMock.add(2, 3) == 6
+        end
+      )
+    end
+
+    test "is invoked n times by the same process in all modes" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 2)
+          Ersatz.set_mock_return_value(&CalcMock.mult/2, 5, times: 1)
+          Ersatz.set_mock_return_value(&CalcMock.add/2, 0)
+
+          assert CalcMock.add(2, 3) == 3
+          assert CalcMock.add(3, 2) == 3
+          assert CalcMock.add(:whatever, :whatever) == 0
+          assert CalcMock.mult(3, 2) == 5
+        end
+      )
+    end
+
+    test "is invoked n times by any process in global mode" do
+      set_ersatz_global()
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 2)
+      Ersatz.set_mock_return_value(&CalcMock.mult/2, 5, times: 1)
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 0)
+
+      task =
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 3
+            assert CalcMock.add(3, 2) == 3
+          end
+        )
+
+      Task.await(task)
+
+      assert CalcMock.add(:whatever, :whatever) == 0
+      assert CalcMock.mult(3, 2) == 5
+    end
+
+    test "is invoked n times by any process in private mode on Elixir 1.8" do
+      set_ersatz_private()
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 2)
+      Ersatz.set_mock_return_value(&CalcMock.mult/2, 5, times: 1)
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 0)
+
+      task =
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 3
+            assert CalcMock.add(3, 2) == 3
+          end
+        )
+
+      Task.await(task)
+
+      assert CalcMock.add(:whatever, :whatever) == 0
+      assert CalcMock.mult(3, 2) == 5
+    end
+
+    test "is invoked n times by a sub-process in private mode on Elixir 1.8" do
+      set_ersatz_private()
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 2)
+      Ersatz.set_mock_return_value(&CalcMock.mult/2, 5, times: 1)
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 0)
+
+      task =
+        Task.async(
+          fn ->
+            assert CalcMock.add(2, 3) == 3
+            assert CalcMock.add(3, 2) == 3
+
+            inner_task =
+              Task.async(
+                fn ->
+                  assert CalcMock.add(:whatever, :whatever) == 0
+                  assert CalcMock.mult(3, 2) == 5
+                end
+              )
+
+            Task.await(inner_task)
+          end
+        )
+
+      Task.await(task)
+    end
+
+    test "can be recharged" do
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 1)
+      assert CalcMock.add(2, 3) == 3
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, 3, times: 1)
+      assert CalcMock.add(3, 2) == 3
+    end
+
+    test "expectations are reclaimed if the global process dies" do
+      task =
+        Task.async(
+          fn ->
+            set_ersatz_global()
+
+            Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+            Ersatz.set_mock_return_value(&CalcMock.mult/2, :expected, times: :permanent)
+          end
+        )
+
+      Task.await(task)
+
+      assert_raise Ersatz.UnexpectedCallError, fn ->
+        CalcMock.add(1, 1)
+      end
+
+      Ersatz.set_mock_return_value(&CalcMock.mult/2, 2, times: 1)
+
+      assert CalcMock.mult(1, 1) == 2
+    end
+
+    test "raises if a non-mock is given" do
+      assert_raise ArgumentError, ~r"module Unknown is not available", fn ->
+        Ersatz.set_mock_return_value(&Unknown.add/2, :whatever)
+      end
+
+      assert_raise ArgumentError, ~r"module String is not a mock", fn ->
+        Ersatz.set_mock_return_value(&String.add/2, :whatever)
+      end
+    end
+
+    test "raises if function is not in behaviour" do
+      assert_raise ArgumentError, ~r"unknown function oops/2 for mock CalcMock", fn ->
+        Ersatz.set_mock_return_value(&CalcMock.oops/2, :whatever)
+      end
+
+      assert_raise ArgumentError, ~r"unknown function add/3 for mock CalcMock", fn ->
+        Ersatz.set_mock_return_value(&CalcMock.add/3, :whatever)
+      end
+    end
+
+    test "raises if there is no implementation defined for function" do
+      assert_raise Ersatz.UnexpectedCallError,
+                   ~r"no implementation defined for CalcMock\.add/2.*with args \[2, 3\]",
+                   fn ->
+                     CalcMock.add(2, 3) == 5
+                   end
+    end
+
+    test "raises if all implementations are consumed" do
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :whatever, times: 1)
+      assert CalcMock.add(2, 3) == :whatever
+
+      assert_raise Ersatz.UnexpectedCallError, ~r"expected CalcMock.add/2 to be called once", fn ->
+        CalcMock.add(2, 3) == 5
+      end
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :other, times: 1)
+      assert CalcMock.add(2, 3) == :other
+
+      msg = ~r"expected CalcMock.add/2 to be called 2 times"
+
+      assert_raise Ersatz.UnexpectedCallError, msg, fn ->
+        CalcMock.add(2, 3) == 5
+      end
+    end
+
+    test "raises if you try to add expectations from non global process" do
+      set_ersatz_global()
+
+      Task.async(
+        fn ->
+          msg =
+            ~r"Only the process that set Ersatz to global can set expectations/stubs in global mode"
+
+          assert_raise ArgumentError, msg, fn ->
+            Ersatz.set_mock_return_value(&CalcMock.add/2, :expected)
+          end
+        end
+      )
+      |> Task.await()
+    end
+
+    test "permanent mode allows repeated invocations" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: :permanent)
+          assert CalcMock.add(1, 2) == :expected
+          assert CalcMock.add(3, 4) == :expected
+          assert CalcMock.add(2, 4) == :expected
+        end
+      )
+    end
+
+    test "permanent mode gives time constraint calls precedence" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :permanent, times: :permanent)
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :temporary, times: 1)
+
+          assert CalcMock.add(1, 1) == :temporary
+        end
+      )
+    end
+
+    test "permanent mode is invoked after temporary mocks are used" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :permanent, times: :permanent)
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :temporary, times: 2)
+
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :temporary
+          assert CalcMock.add(1, 1) == :permanent
+        end
+      )
+    end
+
+    test "permanent mode mocks overwrite earlier permanent mode mocks" do
+      in_all_modes(
+        fn ->
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :first, times: :permanent)
+          Ersatz.set_mock_return_value(&CalcMock.add/2, :second, times: :permanent)
+
+          assert CalcMock.add(1, 1) == :second
+        end
+      )
+    end
+  end
+
   describe "get_mock_calls/1" do
 
     test "gets function calls argument in private mode" do
@@ -466,5 +708,272 @@ defmodule ErsatzTest do
         Ersatz.clear_mock_calls(&CalcMock.add/3)
       end
     end
+  end
+
+  describe "allow/3" do
+    set_ersatz_private()
+
+    test "allows different processes to share mocks from parent process" do
+      parent_pid = self()
+
+      {:ok, child_pid} =
+        start_link_no_callers(
+          fn ->
+            assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+
+            receive do
+              :call_mock ->
+                add_result = CalcMock.add(1, 1)
+                mult_result = CalcMock.mult(1, 1)
+                send(parent_pid, {:verify, add_result, mult_result})
+            end
+          end
+        )
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+      Ersatz.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :permanent end, times: :permanent)
+
+      Ersatz.allow(CalcMock, self(), child_pid)
+
+      send(child_pid, :call_mock)
+
+      assert_receive {:verify, add_result, mult_result}
+      assert add_result == :expected
+      assert mult_result == :permanent
+    end
+
+    test "allows different processes to share mocks from child process" do
+      parent_pid = self()
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+      Ersatz.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :permanent end, times: :permanent)
+
+      async_no_callers(
+        fn ->
+          assert_raise Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end
+
+          Ersatz.allow(CalcMock, parent_pid, self())
+
+          assert CalcMock.add(1, 1) == :expected
+          assert CalcMock.mult(1, 1) == :permanent
+        end
+      )
+      |> Task.await()
+    end
+
+    test "allowances are transitive" do
+      parent_pid = self()
+
+      {:ok, child_pid} =
+        start_link_no_callers(
+          fn ->
+            assert_raise(Ersatz.UnexpectedCallError, fn -> CalcMock.add(1, 1) end)
+
+            receive do
+              :call_mock ->
+                add_result = CalcMock.add(1, 1)
+                mult_result = CalcMock.mult(1, 1)
+                send(parent_pid, {:verify, add_result, mult_result})
+            end
+          end
+        )
+
+      {:ok, transitive_pid} =
+        Task.start_link(
+          fn ->
+            receive do
+              :allow_mock ->
+                CalcMock
+                |> allow(self(), child_pid)
+
+                send(child_pid, :call_mock)
+            end
+          end
+        )
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+      Ersatz.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :permanent end, times: :permanent)
+
+      Ersatz.allow(CalcMock, self(), transitive_pid)
+
+      send(transitive_pid, :allow_mock)
+
+      receive do
+        {:verify, add_result, mult_result} ->
+          assert add_result == :expected
+          assert mult_result == :permanent
+          assert length(Ersatz.get_mock_calls(&CalcMock.add/2)) == 1
+      after
+        1000 ->
+          assert length(Ersatz.get_mock_calls(&CalcMock.add/2)) == 1
+      end
+    end
+
+    test "allowances are reclaimed if the owner process dies" do
+      parent_pid = self()
+
+      task =
+        Task.async(
+          fn ->
+            Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+            Ersatz.set_mock_implementation(&CalcMock.mult/2, fn _, _ -> :permanent end, times: :permanent)
+
+            Ersatz.allow(CalcMock, self(), parent_pid)
+          end
+        )
+
+      Task.await(task)
+
+      assert_raise Ersatz.UnexpectedCallError, fn ->
+        CalcMock.add(1, 1)
+      end
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :new, times: 1)
+
+      assert CalcMock.add(1, 1) == :new
+    end
+
+    test "allowances support locally registered processes" do
+      parent_pid = self()
+      process_name = :test_process
+
+      {:ok, child_pid} =
+        Task.start_link(
+          fn ->
+            receive do
+              :call_mock ->
+                add_result = CalcMock.add(1, 1)
+                send(parent_pid, {:verify, add_result})
+            end
+          end
+        )
+
+      Process.register(child_pid, process_name)
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+
+      Ersatz.allow(CalcMock, self(), process_name)
+
+      send(:test_process, :call_mock)
+
+      assert_receive {:verify, add_result}
+      assert add_result == :expected
+    end
+
+    test "allowances support processes registered through a Registry" do
+      defmodule CalculatorServer do
+        use GenServer
+
+        def init(args) do
+          {:ok, args}
+        end
+
+        def handle_call(:call_mock, _from, []) do
+          add_result = CalcMock.add(1, 1)
+          {:reply, add_result, []}
+        end
+      end
+
+      {:ok, _} = Registry.start_link(keys: :unique, name: Registry.Test)
+      name = {:via, Registry, {Registry.Test, :test_process}}
+      {:ok, _} = GenServer.start_link(CalculatorServer, [], name: name)
+
+      Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+      Ersatz.allow(CalcMock, self(), name)
+
+      add_result = GenServer.call(name, :call_mock)
+      assert add_result == :expected
+    end
+
+    test "raises if you try to allow itself" do
+      assert_raise ArgumentError, "owner_pid and allowed_pid must be different", fn ->
+        Ersatz.allow(CalcMock, self(), self())
+      end
+    end
+
+    test "raises if you try to allow already allowed process" do
+      {:ok, child_pid} = Task.start_link(fn -> Process.sleep(:infinity) end)
+
+      Ersatz.allow(CalcMock, self(), child_pid)
+
+      Task.async(
+        fn ->
+          assert_raise ArgumentError, ~r"it is already allowed by", fn ->
+            Ersatz.allow(CalcMock, self(), child_pid)
+          end
+        end
+      )
+      |> Task.await()
+    end
+
+    test "raises if you try to allow process with existing expectations set" do
+      parent_pid = self()
+
+      {:ok, pid} =
+        Task.start_link(
+          fn ->
+            Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+
+            send(parent_pid, :ready)
+            Process.sleep(:infinity)
+          end
+        )
+
+      assert_receive :ready
+
+      assert_raise ArgumentError, ~r"the process has already defined its own expectations", fn ->
+        Ersatz.allow(CalcMock, self(), pid)
+      end
+    end
+
+    test "raises if you try to define expectations on allowed process" do
+      parent_pid = self()
+
+      Task.start_link(
+        fn ->
+          Ersatz.allow(CalcMock, self(), parent_pid)
+
+          send(parent_pid, :ready)
+          Process.sleep(:infinity)
+        end
+      )
+
+      assert_receive :ready
+
+      assert_raise ArgumentError, ~r"because the process has been allowed by", fn ->
+        Ersatz.set_mock_return_value(&CalcMock.add/2, :expected, times: 1)
+      end
+    end
+
+    test "is ignored if you allow process while in global mode" do
+      set_ersatz_global()
+      {:ok, child_pid} = Task.start_link(fn -> Process.sleep(:infinity) end)
+
+      Task.async(
+        fn ->
+          mock = CalcMock
+          assert Ersatz.allow(mock , self(), child_pid) == mock
+        end
+      )
+      |> Task.await()
+    end
+  end
+
+  defp async_no_callers(fun) do
+    Task.async(
+      fn ->
+        Process.delete(:"$callers")
+        fun.()
+      end
+    )
+  end
+
+  defp start_link_no_callers(fun) do
+    Task.start_link(
+      fn ->
+        Process.delete(:"$callers")
+        fun.()
+      end
+    )
   end
 end

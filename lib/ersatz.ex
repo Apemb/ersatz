@@ -3,7 +3,8 @@ defmodule Ersatz do
   Ersatz is a library for defining mocks in Elixir.
 
   -   Mocks are generated based on behaviours during configuration and injected using env variables.
-  -   Add the mock behaviour by specifying functions to be used during tests with `Ersatz.set_mock_implementation/2`.
+  -   Add the mock behaviour by specifying functions to be used during tests with `Ersatz.set_mock_implementation/3` or
+  `Ersatz.set_mock_return_value/3`.
   -   Test your code's actions on the mock dependency using `Ersatz.get_mock_calls/1` or the Espec custom matchers.
 
   ## Example
@@ -27,18 +28,23 @@ defmodule Ersatz do
 
       import Ersatz
 
-      test "invokes add" do
+      test "invokes add and mult" do
         # Arrange
         Ersatz.set_mock_implementation(&MyApp.CalcMock.add/2, fn x, y -> x + y end)
+        Ersatz.set_mock_return_value(&MyApp.CalcMock.mult/2, 42)
 
         # Act
-        result = MyApp.CalcMock.add(2, 3)
+        add_result = MyApp.CalcMock.add(2, 3)
+        mult_result = MyApp.CalcMock.mult(4, 1)
 
         # Assert
-        assert result == 5 # assert the result is the one we expected
+        assert add_result == 5 # assert the result is the one we expected
+        assert mult_result == 42 # assert the result is the one we expected
 
-        api_mock_calls = Ersatz.get_mock_calls(&MyApp.CalcMock.add/2) # get the calls our mock implementation received
-        assert api_mock_calls == [[2, 3]] # assert the call args are the ones we expected
+        add_mock_calls = Ersatz.get_mock_calls(&MyApp.CalcMock.add/2) # get the calls our mock implementation received
+        assert add_mock_calls == [[2, 3]] # assert the call args are the ones we expected
+        mult_mock_calls = Ersatz.get_mock_calls(&MyApp.CalcMock.mult/2) # get the calls our mock implementation received
+        assert mult_mock_calls == [[4, 1]] # assert the call args are the ones we expected
       end
 
   In practice, you will have to pass the mock to the system under the test.
@@ -96,7 +102,6 @@ defmodule Ersatz do
       defp elixirc_paths(_),     do: ["lib"]
 
   ## Multi-process collaboration
-  *Multi-process collaboration is under verification. Any bug you ca find is of great help*
 
   Ersatz supports multi-process collaboration via two mechanisms:
 
@@ -112,9 +117,8 @@ defmodule Ersatz do
   defined in the parent process while still being safe for async tests.
 
       test "invokes add and mult from a task" do
-        MyApp.CalcMock
-        |> expect(:add, fn x, y -> x + y end)
-        |> expect(:mult, fn x, y -> x * y end)
+        Ersatz.set_mock_implementation(&MyApp.CalcMock.add/2, fn x, y -> x + y end)
+        Ersatz.set_mock_return_value(&MyApp.CalcMock.mult/2, 42)
 
         parent_pid = self()
 
@@ -138,19 +142,13 @@ defmodule Ersatz do
 
       set_ersatz_global()
 
-  which can be done as a setup callback:
-
-      setup :set_ersatz_global
-      setup :verify_on_exit!
-
       test "invokes add and mult from a task" do
-        MyApp.CalcMock
-        |> expect(:add, fn x, y -> x + y end)
-        |> expect(:mult, fn x, y -> x * y end)
+        Ersatz.set_mock_implementation(&MyApp.CalcMock.add/2, fn x, y -> x + y end)
+        Ersatz.set_mock_return_value(&MyApp.CalcMock.mult/2, 42)
 
         Task.async(fn ->
           assert MyApp.CalcMock.add(2, 3) == 5
-          assert MyApp.CalcMock.mult(2, 3) == 6
+          assert MyApp.CalcMock.mult(2, 3) == 42
         end)
         |> Task.await
       end
@@ -337,13 +335,15 @@ defmodule Ersatz do
   If no mock implementation is available and the mock is nevertheless called, an error is raised.
 
   ## Options
-    - `permanent: true` (default) to specify that the mock implementation is good for an unlimited number of uses.
-    - `times: 1` to specify the number of usage that are allowed for that mock implementation.
+    - `times:` to specify the number of usage that are allowed for that mock implementation. If it is an integer the
+    mock implementation will be limited to that number of usages. If it is set to `times: :permanent` the mock
+    implementation will be ok for an unlimited number of uses.
 
   ## Example
   ```
   # For a permanent mock implementation
   Ersatz.set_mock_implementation(&MockCalc.add/2, fn x, y -> x + y)
+  Ersatz.set_mock_implementation(&MockCalc.add/2, fn x, y -> x + y, times: :permanent)
 
   # For a mock implementation limited to 2 usages
   Ersatz.set_mock_implementation(&MockCalc.add/2, fn x, y -> x + y, times: 2)
@@ -367,6 +367,64 @@ defmodule Ersatz do
     unless arity == replacement_function_arity do
       raise ArgumentError, "replacement function and #{function_name}/#{arity} do not have same arity"
     end
+
+    case number_of_usages do
+      :permanent ->
+        add_return_object!(mock_module, function_name, arity, {0, [], return_object})
+
+      number_of_usages when is_integer(number_of_usages) and number_of_usages >= 0 ->
+        calls = List.duplicate(return_object, number_of_usages)
+        add_return_object!(mock_module, function_name, arity, {number_of_usages, calls, nil})
+    end
+
+    function_to_mock
+  end
+
+  @doc """
+  Specify the return value to be used as response of the function that is going to be replaced.
+  It can be a limited in use or a permanent response that does not wear down (defaults to permanent response).
+
+  It is a simpler way to give a mock implementation to your mock modules compared to the `set_mock_implementation/3`
+  function.
+
+  Note that only one permanent response or mock function implementation is possible at the same time but multiple time
+  limited implementation are possible (used in the same order they were added). If a permanent and (multiple) temporary mock(s)
+  implementations are defined, the temporary mock implementations are used before the permanent one.
+
+  If no mock implementation is available and the mock is nevertheless called, an error is raised.
+
+  `set_mock_return_value/3` and `set_mock_implementation/3` react on the same way. `set_mock_return_value/3` is a type
+  of mock implementation. So expect the same behaviour for permanent mock implementation (only one at the same time), or
+  for order of the temporary mock implementations.
+
+  ## Options
+    - `times:` to specify the number of usage that are allowed for that mock implementation. If it is an integer the
+    mock implementation will be limited to that number of usages. If it is set to `times: :permanent` the mock
+    implementation will be ok for an unlimited number of uses.
+
+  ## Example
+  ```
+  # For a permanent mock implementation defined by a return value
+  Ersatz.set_mock_return_value(&MockCalc.add/2, 4)
+  Ersatz.set_mock_return_value(&MockCalc.add/2, 4, times: :permanent)
+
+  # For a mock implementation defined by a return value limited to 2 usages
+  Ersatz.set_mock_return_value(&MockCalc.add/2, 4, times: 2)
+  ```
+  """
+  def set_mock_return_value(function_to_mock, return_value, options \\ [])
+      when is_function(function_to_mock) do
+
+    number_of_usages = Access.get(options, :times, :permanent)
+
+    {:module, mock_module} = Function.info(function_to_mock, :module)
+    {:name, function_name} = Function.info(function_to_mock, :name)
+    {:arity, arity} = Function.info(function_to_mock, :arity)
+
+    return_object = Ersatz.ReturnObject.create_from_return_value(return_value)
+
+    validate_mock_module!(mock_module)
+    validate_function!(function_to_mock)
 
     case number_of_usages do
       :permanent ->
@@ -465,13 +523,13 @@ defmodule Ersatz do
   end
 
   @doc """
-    Resets the calls to that mock function. Useful in case of permanent mock implementations shared between multiple
-    tests (using a setup block for example)
+  Resets the calls to that mock function. Useful in case of permanent mock implementations shared between multiple
+  tests (using a setup block for example)
 
-    ## Example
-    ```
-    Ersatz.clear_mock_calls(&MockCalc.add/2)
-    ```
+  ## Example
+
+      Ersatz.clear_mock_calls(&MockCalc.add/2)
+
   """
   def clear_mock_calls(mocked_function) when is_function(mocked_function) do
     all_callers = [self() | caller_pids()]
@@ -488,6 +546,55 @@ defmodule Ersatz do
       {:error, reason} ->
         # TODO: useful error message
         raise UnexpectedCallError, "todo error on clear mocks call #{reason}"
+    end
+  end
+
+  @doc """
+  Allows other processes to share expectations and stubs
+  defined by owner process.
+
+  ## Examples
+
+  To allow `child_pid` to call any stubs or expectations defined for mock module `CalcMock`:
+
+      Ersatz.allow(CalcMock, self(), child_pid)
+
+  `allow/3` also accepts named process or via references:
+
+      Ersatz.allow(CalcMock, self(), SomeChildProcess)
+
+  """
+  def allow(mock_module, owner_pid, allowed_via) when is_atom(mock_module) and is_pid(owner_pid)  do
+    allowed_pid = GenServer.whereis(allowed_via)
+
+    if allowed_pid == owner_pid do
+      raise ArgumentError, "owner_pid and allowed_pid must be different"
+    end
+
+    case Ersatz.Server.allow(mock_module, owner_pid, allowed_pid) do
+      :ok ->
+        mock_module
+
+      {:error, {:already_allowed, actual_pid}} ->
+        raise ArgumentError, """
+        cannot allow #{inspect(allowed_pid)} to use #{inspect(mock_module)} from #{inspect(owner_pid)} \
+                                because it is already allowed by #{inspect(actual_pid)}.
+
+        If you are seeing this error message, it is because you are either \
+                                setting up allowances from different processes or your tests have \
+                                async: true and you found a race condition where two different tests \
+                                are allowing the same process
+        """
+
+      {:error, :expectations_defined} ->
+        raise ArgumentError, """
+        cannot allow #{inspect(allowed_pid)} to use #{inspect(mock_module)} from #{inspect(owner_pid)} \
+                                because the process has already defined its own expectations/stubs
+        """
+
+      {:error, :in_global_mode} ->
+        # Already allowed
+        mock_module
     end
   end
 
