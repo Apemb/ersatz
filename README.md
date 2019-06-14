@@ -26,7 +26,7 @@ Add `ersatz` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ersatz, "~> 0.1.2", only: :test}
+    {:ersatz, "~> 0.2", only: :test}
   ]
 end
 ```
